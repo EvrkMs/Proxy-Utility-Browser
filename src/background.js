@@ -4,12 +4,14 @@ const DEFAULT_STATE = {
   enabled: false,
   defaultProxyId: null,
   proxies: [],
+  proxyChecks: {},
   rules: [],
   tabHosts: {},
   tabContexts: {}
 };
 
 let state = cloneState(DEFAULT_STATE);
+const pendingProxyTests = new Map();
 
 function cloneState(value) {
   return JSON.parse(JSON.stringify(value));
@@ -48,6 +50,14 @@ function ensureProxyShape(proxy) {
   };
 }
 
+function ensureProxyCheckShape(check) {
+  return {
+    status: check?.status === "success" ? "success" : check?.status === "error" ? "error" : "idle",
+    message: String(check?.message ?? ""),
+    checkedAt: Number(check?.checkedAt ?? 0) || 0
+  };
+}
+
 function ensureRuleShape(rule) {
   const uniqueHosts = Array.from(new Set((rule.hosts ?? []).map(normalizeHost).filter(Boolean)));
   const matchHost = normalizeHost(rule.matchHost ?? uniqueHosts[0] ?? "");
@@ -68,6 +78,14 @@ function getProxyById(proxyId) {
   }
 
   return state.proxies.find((item) => item.id === proxyId) ?? null;
+}
+
+function getProxyForTestUrl(url) {
+  if (!url) {
+    return null;
+  }
+
+  return pendingProxyTests.get(url) ?? null;
 }
 
 function getEffectiveProxy(rule) {
@@ -124,6 +142,52 @@ function getAuthCredentialsForProxy(proxy) {
   };
 }
 
+function buildCheckResult(status, message) {
+  return {
+    status,
+    message,
+    checkedAt: Date.now()
+  };
+}
+
+function setProxyCheck(proxyId, result) {
+  if (!proxyId) {
+    return;
+  }
+
+  state.proxyChecks[proxyId] = ensureProxyCheckShape(result);
+}
+
+async function testProxyConnection(proxyInput) {
+  const proxy = ensureProxyShape(proxyInput ?? {});
+
+  if (!proxy.host || !proxy.port) {
+    throw new Error("Proxy host and port are required.");
+  }
+
+  const testUrl = `https://detectportal.firefox.com/success.txt?proxy_browser_test=${encodeURIComponent(crypto.randomUUID())}`;
+  pendingProxyTests.set(testUrl, proxy);
+
+  try {
+    const response = await fetch(testUrl, {
+      cache: "no-store"
+    });
+
+    const body = await response.text();
+    const ok = response.ok && body.toLowerCase().includes("success");
+
+    if (!ok) {
+      throw new Error("The proxy responded, but the test endpoint returned an unexpected response.");
+    }
+
+    return buildCheckResult("success", "Подключение через proxy прошло успешно.");
+  } catch (error) {
+    return buildCheckResult("error", error.message || "Не удалось подключиться через proxy.");
+  } finally {
+    pendingProxyTests.delete(testUrl);
+  }
+}
+
 function pruneTabState() {
   const knownTabIds = new Set(Object.keys(state.tabHosts));
   const knownContextIds = new Set(Object.keys(state.tabContexts));
@@ -168,6 +232,9 @@ function migrateState(rawState) {
   }
 
   nextState.proxies = (nextState.proxies ?? []).map(ensureProxyShape);
+  nextState.proxyChecks = Object.fromEntries(
+    Object.entries(nextState.proxyChecks ?? {}).map(([key, value]) => [key, ensureProxyCheckShape(value)])
+  );
   nextState.rules = (nextState.rules ?? []).map(ensureRuleShape);
   nextState.tabHosts = nextState.tabHosts ?? {};
   nextState.tabContexts = nextState.tabContexts ?? {};
@@ -229,7 +296,10 @@ async function getPopupState() {
     defaultProxyId: state.defaultProxyId,
     defaultProxyName: getProxyName(state.defaultProxyId),
     hasProxy: hasConfiguredProxy(),
-    proxies: state.proxies,
+    proxies: state.proxies.map((proxy) => ({
+      ...proxy,
+      check: ensureProxyCheckShape(state.proxyChecks[proxy.id])
+    })),
     rules: state.rules.map(serializeRule),
     activeTab: activeTab
       ? {
@@ -289,6 +359,12 @@ browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
 
 browser.proxy.onRequest.addListener(
   (requestInfo) => {
+    const testProxy = getProxyForTestUrl(requestInfo.url);
+
+    if (testProxy) {
+      return buildProxyInfo(testProxy);
+    }
+
     if (!state.enabled || !hasConfiguredProxy() || !tryGetHostname(requestInfo.url)) {
       return { type: "direct" };
     }
@@ -306,6 +382,13 @@ browser.proxy.onRequest.addListener(
 
 browser.webRequest.onAuthRequired.addListener(
   (details) => {
+    const testProxy = getProxyForTestUrl(details.url);
+
+    if (testProxy) {
+      const testCredentials = getAuthCredentialsForProxy(testProxy);
+      return testCredentials ? { authCredentials: testCredentials } : {};
+    }
+
     if (!details.isProxy || !state.enabled || !hasConfiguredProxy()) {
       return {};
     }
@@ -356,6 +439,19 @@ browser.runtime.onMessage.addListener((message) => {
 
         return saveState().then(() => getPopupState());
       }
+
+    case "proxy:testProfile":
+      return testProxyConnection(message.payload).then(async (result) => {
+        if (message.payload?.id) {
+          setProxyCheck(message.payload.id, result);
+          await saveState();
+        }
+
+        return {
+          result,
+          state: await getPopupState()
+        };
+      });
 
     case "proxy:setDefault":
       {

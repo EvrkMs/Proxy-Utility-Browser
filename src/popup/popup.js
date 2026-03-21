@@ -16,6 +16,7 @@ const elements = {
   proxyType: document.getElementById("proxy-type"),
   proxyHost: document.getElementById("proxy-host"),
   proxyPort: document.getElementById("proxy-port"),
+  testProxyForm: document.getElementById("test-proxy-form"),
   proxyAuthEnabled: document.getElementById("proxy-auth-enabled"),
   authFields: document.getElementById("auth-fields"),
   proxyUsername: document.getElementById("proxy-username"),
@@ -74,12 +75,24 @@ function buildChip(text) {
   return chip;
 }
 
-async function syncState(newState, successMessage) {
+function getProxyPayloadFromForm() {
+  return {
+    name: elements.proxyName.value,
+    type: elements.proxyType.value,
+    host: elements.proxyHost.value,
+    port: elements.proxyPort.value,
+    authEnabled: elements.proxyAuthEnabled.checked,
+    username: elements.proxyUsername.value,
+    password: elements.proxyPassword.value
+  };
+}
+
+async function syncState(newState, successMessage, isError = false) {
   popupState = newState;
   render(newState);
 
   if (successMessage) {
-    setStatus(successMessage);
+    setStatus(successMessage, isError);
   }
 }
 
@@ -255,7 +268,11 @@ function renderProxies(proxies, defaultProxyId) {
       meta.append(buildChip("По умолчанию"));
     }
 
-    main.append(title, address, meta);
+    const check = document.createElement("p");
+    check.className = "muted small";
+    check.textContent = proxy.check?.message || "Подключение ещё не проверялось.";
+
+    main.append(title, address, meta, check);
 
     const actions = document.createElement("div");
     actions.className = "proxy-actions";
@@ -277,6 +294,26 @@ function renderProxies(proxies, defaultProxyId) {
       }
     });
 
+    const testButton = document.createElement("button");
+    testButton.type = "button";
+    testButton.className = "ghost";
+    testButton.textContent = "Проверить";
+    testButton.addEventListener("click", async () => {
+      try {
+        const response = await browser.runtime.sendMessage({
+          type: "proxy:testProfile",
+          payload: proxy
+        });
+        await syncState(
+          response.state,
+          response.result.message,
+          response.result.status === "error"
+        );
+      } catch (error) {
+        setStatus(error.message || "Не удалось проверить proxy.", true);
+      }
+    });
+
     const removeButton = document.createElement("button");
     removeButton.type = "button";
     removeButton.className = "danger";
@@ -293,7 +330,7 @@ function renderProxies(proxies, defaultProxyId) {
       }
     });
 
-    actions.append(defaultButton, removeButton);
+    actions.append(defaultButton, testButton, removeButton);
     card.append(main, actions);
     elements.proxyList.appendChild(card);
   }
@@ -378,15 +415,7 @@ elements.proxyForm.addEventListener("submit", async (event) => {
   try {
     const state = await browser.runtime.sendMessage({
       type: "proxy:saveProfile",
-      payload: {
-        name: elements.proxyName.value,
-        type: elements.proxyType.value,
-        host: elements.proxyHost.value,
-        port: elements.proxyPort.value,
-        authEnabled: elements.proxyAuthEnabled.checked,
-        username: elements.proxyUsername.value,
-        password: elements.proxyPassword.value
-      }
+      payload: getProxyPayloadFromForm()
     });
 
     elements.proxyForm.reset();
@@ -398,6 +427,22 @@ elements.proxyForm.addEventListener("submit", async (event) => {
     await syncState(state, "Proxy сохранён.");
   } catch (error) {
     setStatus(error.message || "Не удалось сохранить proxy.", true);
+  }
+});
+
+elements.testProxyForm.addEventListener("click", async () => {
+  try {
+    const response = await browser.runtime.sendMessage({
+      type: "proxy:testProfile",
+      payload: getProxyPayloadFromForm()
+    });
+    await syncState(
+      response.state,
+      response.result.message,
+      response.result.status === "error"
+    );
+  } catch (error) {
+    setStatus(error.message || "Не удалось проверить proxy.", true);
   }
 });
 
