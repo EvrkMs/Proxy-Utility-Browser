@@ -8,6 +8,7 @@ import {
 
 const pendingProxyTests = new Map();
 const IP_CHECK_URL = "https://api.ipify.org";
+const IP_ADDRESS_PATTERN = /^(\d{1,3}\.){3}\d{1,3}$|^[0-9a-f:]+$/i;
 
 export function getById(proxyId) {
   if (!proxyId) {
@@ -35,7 +36,12 @@ export function getProxyForTestUrl(url) {
     return null;
   }
 
-  return pendingProxyTests.get(url) ?? null;
+  try {
+    const testId = new URL(url).searchParams.get("proxy_browser_test");
+    return testId ? pendingProxyTests.get(testId) ?? null : null;
+  } catch {
+    return null;
+  }
 }
 
 export async function save(raw) {
@@ -143,16 +149,6 @@ export function getAuthCredentials(proxy) {
   };
 }
 
-function buildCheckResult(status, message) {
-  return normalizeProxyCheck({
-    status,
-    message,
-    checkedAt: Date.now(),
-    directIp: "",
-    proxyIp: ""
-  });
-}
-
 export async function testProxy(rawProxy) {
   const proxy = normalizeProxy(rawProxy ?? {});
   const shouldPersist = Boolean(rawProxy?.id && getById(rawProxy.id));
@@ -161,11 +157,12 @@ export async function testProxy(rawProxy) {
     throw new Error("Proxy host and port are required.");
   }
 
-  const testUrl = `${IP_CHECK_URL}?proxy_browser_test=${encodeURIComponent(crypto.randomUUID())}`;
+  const testId = crypto.randomUUID();
+  const testUrl = `${IP_CHECK_URL}?proxy_browser_test=${encodeURIComponent(testId)}`;
 
   try {
     const directIp = await fetchIp(IP_CHECK_URL);
-    const proxyIp = await fetchIpThroughHiddenTab(testUrl, proxy);
+    const proxyIp = await fetchIpThroughHiddenTab(testUrl, testId, proxy);
 
     if (!proxyIp) {
       throw new Error("Не удалось получить IP через proxy.");
@@ -202,7 +199,7 @@ export async function testProxy(rawProxy) {
 
     return result;
   } finally {
-    pendingProxyTests.delete(testUrl);
+    pendingProxyTests.delete(testId);
   }
 }
 
@@ -222,23 +219,10 @@ async function fetchIp(url) {
   return ip;
 }
 
-async function fetchIpThroughHiddenTab(url, proxy) {
-  pendingProxyTests.set(url, proxy);
-
-  const tab = await browser.tabs.create({
-    url,
-    active: false
-  });
-
-  const tabId = tab.id;
-
-  if (typeof tabId !== "number") {
-    pendingProxyTests.delete(url);
-    throw new Error("Не удалось создать тестовую вкладку.");
-  }
-
+async function fetchIpThroughHiddenTab(url, testId, proxy) {
   return new Promise((resolve, reject) => {
     let settled = false;
+    let tabId = null;
 
     const timeoutId = setTimeout(() => {
       finishWithError(new Error("Timeout: proxy не ответил за 12 секунд."));
@@ -248,8 +232,10 @@ async function fetchIpThroughHiddenTab(url, proxy) {
       clearTimeout(timeoutId);
       browser.tabs.onUpdated.removeListener(onUpdated);
       browser.webRequest.onErrorOccurred.removeListener(onErrorOccurred);
-      browser.tabs.remove(tabId).catch(() => {});
-      pendingProxyTests.delete(url);
+      if (typeof tabId === "number") {
+        browser.tabs.remove(tabId).catch(() => {});
+      }
+      pendingProxyTests.delete(testId);
     };
 
     const finishWithResult = (value) => {
@@ -273,7 +259,7 @@ async function fetchIpThroughHiddenTab(url, proxy) {
     };
 
     const onErrorOccurred = (details) => {
-      if (details.tabId !== tabId || details.url !== url) {
+      if (details.tabId !== tabId) {
         return;
       }
 
@@ -290,10 +276,12 @@ async function fetchIpThroughHiddenTab(url, proxy) {
           code: "document.body ? document.body.innerText.trim() : '';"
         });
 
-        const ip = String(result ?? "").trim();
+        const ip = String(result ?? "").trim().split(/\s+/)[0];
 
-        if (!ip) {
-          throw new Error("Тестовая вкладка загрузилась, но не вернула IP.");
+        if (!ip || !IP_ADDRESS_PATTERN.test(ip)) {
+          throw new Error(
+            "Тестовая вкладка не вернула корректный IP. Прокси недоступен или вернул ошибку."
+          );
         }
 
         finishWithResult(ip);
@@ -306,6 +294,24 @@ async function fetchIpThroughHiddenTab(url, proxy) {
     browser.webRequest.onErrorOccurred.addListener(onErrorOccurred, {
       urls: ["<all_urls>"]
     });
+
+    pendingProxyTests.set(testId, proxy);
+
+    browser.tabs
+      .create({
+        url,
+        active: false
+      })
+      .then((tab) => {
+        if (typeof tab.id !== "number") {
+          throw new Error("Не удалось создать тестовую вкладку.");
+        }
+
+        tabId = tab.id;
+      })
+      .catch((error) => {
+        finishWithError(error instanceof Error ? error : new Error(String(error)));
+      });
   });
 }
 

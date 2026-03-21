@@ -1,121 +1,134 @@
 import { resolveViewModel } from "./state.js";
 
+/* ── Element refs ───────────────────────────────────── */
 const el = {
-  tabButtons: Array.from(document.querySelectorAll("[data-tab]")),
-  tabPanels: Array.from(document.querySelectorAll("[data-tab-panel]")),
+  tabButtons:       Array.from(document.querySelectorAll("[data-tab]")),
+  tabPanels:        Array.from(document.querySelectorAll("[data-tab-panel]")),
   extensionEnabled: document.getElementById("extension-enabled"),
-  currentSite: document.getElementById("current-site"),
-  currentMode: document.getElementById("current-mode"),
-  noProxyState: document.getElementById("no-proxy-state"),
-  homeActions: document.getElementById("home-actions"),
-  goToAddProxy: document.getElementById("go-to-add-proxy"),
-  addCurrentSite: document.getElementById("add-current-site"),
+  siteCard:         document.getElementById("site-card"),
+  siteDot:          document.getElementById("site-dot"),
+  currentSite:      document.getElementById("current-site"),
+  currentMode:      document.getElementById("current-mode"),
+  noProxyState:     document.getElementById("no-proxy-state"),
+  homeActions:      document.getElementById("home-actions"),
+  goToAddProxy:     document.getElementById("go-to-add-proxy"),
+  addCurrentSite:   document.getElementById("add-current-site"),
   activeProxyLabel: document.getElementById("active-proxy-label"),
-  proxyErrorCard: document.getElementById("proxy-error-card"),
-  proxyErrorText: document.getElementById("proxy-error-text"),
-  proxyDecisionCard: document.getElementById("proxy-decision-card"),
-  proxyDecisionText: document.getElementById("proxy-decision-text"),
-  suggestedHosts: document.getElementById("suggested-hosts"),
-  rulesList: document.getElementById("rules-list"),
-  proxyForm: document.getElementById("proxy-form"),
-  proxyId: document.getElementById("proxy-id"),
-  proxyFormMode: document.getElementById("proxy-form-mode"),
-  proxyFormModeText: document.getElementById("proxy-form-mode-text"),
-  proxyName: document.getElementById("proxy-name"),
-  proxyType: document.getElementById("proxy-type"),
-  proxyHost: document.getElementById("proxy-host"),
-  proxyPort: document.getElementById("proxy-port"),
+  proxyErrorCard:   document.getElementById("proxy-error-card"),
+  proxyErrorText:   document.getElementById("proxy-error-text"),
+  proxyDecisionCard:document.getElementById("proxy-decision-card"),
+  proxyDecisionText:document.getElementById("proxy-decision-text"),
+  suggestedHosts:   document.getElementById("suggested-hosts"),
+  rulesList:        document.getElementById("rules-list"),
+  proxyForm:        document.getElementById("proxy-form"),
+  proxyId:          document.getElementById("proxy-id"),
+  proxyFormMode:    document.getElementById("proxy-form-mode"),
+  proxyFormModeText:document.getElementById("proxy-form-mode-text"),
+  proxyName:        document.getElementById("proxy-name"),
+  proxyType:        document.getElementById("proxy-type"),
+  proxyHost:        document.getElementById("proxy-host"),
+  proxyPort:        document.getElementById("proxy-port"),
   proxyAuthEnabled: document.getElementById("proxy-auth-enabled"),
-  authFields: document.getElementById("auth-fields"),
-  proxyUsername: document.getElementById("proxy-username"),
-  proxyPassword: document.getElementById("proxy-password"),
-  cancelProxyEdit: document.getElementById("cancel-proxy-edit"),
-  proxyList: document.getElementById("proxy-list"),
-  defaultProxyLabel: document.getElementById("default-proxy-label"),
-  testProxyButton: document.getElementById("test-proxy-form"),
-  status: document.getElementById("status")
+  authFields:       document.getElementById("auth-fields"),
+  proxyUsername:    document.getElementById("proxy-username"),
+  proxyPassword:    document.getElementById("proxy-password"),
+  cancelProxyEdit:  document.getElementById("cancel-proxy-edit"),
+  proxySubmit:      document.getElementById("proxy-submit"),
+  testProxyButton:  document.getElementById("test-proxy-form"),
+  proxyList:        document.getElementById("proxy-list"),
+  defaultProxyLabel:document.getElementById("default-proxy-label"),
+  status:           document.getElementById("status"),
 };
 
-let activeTabName = "home";
-let lastActiveTab = null;
+/* ── Status helper ──────────────────────────────────── */
+let statusTimer;
 
 function setStatus(message, isError = false) {
   el.status.textContent = message;
-  el.status.style.color = isError ? "#9d261d" : "#3a5e81";
+  el.status.classList.toggle("is-error", isError);
+  el.status.classList.toggle("is-ok", !isError && Boolean(message));
+  clearTimeout(statusTimer);
+  if (message) {
+    statusTimer = setTimeout(() => {
+      el.status.textContent = "";
+      el.status.classList.remove("is-error", "is-ok");
+    }, 4000);
+  }
 }
+
+/* ── Tab switching ──────────────────────────────────── */
+let activeTabName = "home";
 
 function switchTab(tabName) {
   activeTabName = tabName;
-
-  for (const button of el.tabButtons) {
-    button.classList.toggle("active", button.dataset.tab === tabName);
+  for (const btn of el.tabButtons) {
+    btn.classList.toggle("active", btn.dataset.tab === tabName);
   }
-
   for (const panel of el.tabPanels) {
     panel.classList.toggle("hidden", panel.dataset.tabPanel !== tabName);
   }
 }
 
-function getProxyPayload() {
-  return {
-    id: el.proxyId.value || undefined,
-    name: el.proxyName.value,
-    type: el.proxyType.value,
-    host: el.proxyHost.value,
-    port: el.proxyPort.value,
-    authEnabled: el.proxyAuthEnabled.checked,
-    username: el.proxyUsername.value,
-    password: el.proxyPassword.value
-  };
+/* ── Port defaults ──────────────────────────────────── */
+const DEFAULT_PORTS = { http: "80", https: "443", socks: "1080", socks4: "1080" };
+let lastProxyType = "https";
+
+function getDefaultPort(type) {
+  return DEFAULT_PORTS[type] ?? "443";
 }
 
-function getDefaultPortForType(type) {
-  switch (type) {
-    case "http":
-      return "80";
-    case "socks":
-    case "socks4":
-      return "1080";
-    case "https":
-    default:
-      return "443";
-  }
+/* ── Proxy form helpers ─────────────────────────────── */
+function getProxyPayload() {
+  return {
+    id:          el.proxyId.value || undefined,
+    name:        el.proxyName.value,
+    type:        el.proxyType.value,
+    host:        el.proxyHost.value,
+    port:        el.proxyPort.value,
+    authEnabled: el.proxyAuthEnabled.checked,
+    username:    el.proxyUsername.value,
+    password:    el.proxyPassword.value,
+  };
 }
 
 function resetProxyForm() {
   el.proxyForm.reset();
   el.proxyId.value = "";
   el.proxyType.value = "https";
-  el.proxyPort.value = getDefaultPortForType("https");
+  el.proxyPort.value = getDefaultPort("https");
+  lastProxyType = "https";
   el.proxyAuthEnabled.checked = false;
   el.authFields.classList.add("hidden");
   el.proxyFormMode.classList.add("hidden");
   el.cancelProxyEdit.classList.add("hidden");
-  el.proxyFormModeText.textContent = "Изменения будут сохранены в существующий профиль.";
+  el.proxySubmit.disabled = false;
 }
 
 function startProxyEdit(proxy) {
   el.proxyId.value = proxy.id;
   el.proxyName.value = proxy.name || "";
   el.proxyType.value = proxy.type || "https";
+  lastProxyType = proxy.type || "https";
   el.proxyHost.value = proxy.host || "";
-  el.proxyPort.value = String(proxy.port || getDefaultPortForType(proxy.type));
+  el.proxyPort.value = String(proxy.port || getDefaultPort(proxy.type));
   el.proxyAuthEnabled.checked = Boolean(proxy.authEnabled);
   el.proxyUsername.value = proxy.username || "";
   el.proxyPassword.value = proxy.password || "";
   el.authFields.classList.toggle("hidden", !proxy.authEnabled);
   el.proxyFormMode.classList.remove("hidden");
   el.cancelProxyEdit.classList.remove("hidden");
-  el.proxyFormModeText.textContent = `Редактируется профиль: ${proxy.name}`;
+  el.proxyFormModeText.textContent = proxy.name;
   switchTab("proxies");
 }
+
+/* ── State helpers ──────────────────────────────────── */
+let lastActiveTab = null;
 
 async function fetchViewModel() {
   const [rawState, tabs] = await Promise.all([
     browser.runtime.sendMessage({ type: "state:get" }),
-    browser.tabs.query({ active: true, currentWindow: true })
+    browser.tabs.query({ active: true, currentWindow: true }),
   ]);
-
   lastActiveTab = tabs[0] ?? null;
   return resolveViewModel(rawState, lastActiveTab);
 }
@@ -129,30 +142,35 @@ async function refresh() {
   render(vm);
 }
 
+/* ── Render ─────────────────────────────────────────── */
 function render(vm) {
+  // Header toggle
   el.extensionEnabled.checked = Boolean(vm.enabled && vm.hasProxy);
   el.extensionEnabled.disabled = !vm.hasProxy;
 
+  // Site card
   el.currentSite.textContent = vm.activeTab?.hostname || "Нет активной вкладки";
   el.currentMode.textContent = vm.activeRuleId
-    ? `Для этого сайта будет использован ${vm.activeProxyName || "proxy по умолчанию"}.`
-    : "Для этого сайта отдельное правило пока не создано.";
+    ? `Маршрут: ${vm.activeProxyName || "прокси по умолчанию"}`
+    : "Правило для этого сайта не создано.";
+  el.siteCard.classList.toggle("is-proxied", Boolean(vm.activeRuleId && vm.enabled));
 
-  el.activeProxyLabel.textContent = vm.defaultProxyName
-    ? `Proxy по умолчанию: ${vm.defaultProxyName}`
-    : "Proxy по умолчанию пока не выбран.";
+  // Home actions visibility
+  el.noProxyState.classList.toggle("hidden", vm.hasProxy);
+  el.homeActions.classList.toggle("hidden", !vm.hasProxy);
+  el.addCurrentSite.disabled = !vm.activeTab || !vm.hasProxy;
+
+  // Default proxy label
+  el.activeProxyLabel.textContent = vm.defaultProxyName ?? "Не выбран.";
+  el.defaultProxyLabel.textContent = vm.defaultProxyName
+    ? `По умолчанию: ${vm.defaultProxyName}`
+    : "По умолчанию не выбран.";
+
+  // Error / decision cards
   el.proxyErrorCard.classList.toggle("hidden", !vm.lastProxyError);
   el.proxyErrorText.textContent = vm.lastProxyError || "";
   el.proxyDecisionCard.classList.toggle("hidden", !vm.lastProxyDecision);
   el.proxyDecisionText.textContent = formatProxyDecision(vm.lastProxyDecision);
-
-  el.defaultProxyLabel.textContent = vm.defaultProxyName
-    ? `По умолчанию: ${vm.defaultProxyName}`
-    : "Proxy по умолчанию не выбран.";
-
-  el.noProxyState.classList.toggle("hidden", vm.hasProxy);
-  el.homeActions.classList.toggle("hidden", !vm.hasProxy);
-  el.addCurrentSite.disabled = !vm.activeTab || !vm.hasProxy;
 
   renderSuggestedHosts(vm.suggestedHosts);
   renderRules(vm.rules, vm.proxies);
@@ -161,86 +179,28 @@ function render(vm) {
 
 function renderSuggestedHosts(hosts) {
   el.suggestedHosts.textContent = "";
-
   if (!hosts.length) {
-    const item = document.createElement("li");
-    item.className = "muted";
-    item.textContent = "Пока ничего не замечено.";
-    el.suggestedHosts.appendChild(item);
+    const li = document.createElement("li");
+    li.className = "chip-empty";
+    li.textContent = "Ничего не замечено.";
+    el.suggestedHosts.appendChild(li);
     return;
   }
-
   for (const host of hosts) {
-    const item = document.createElement("li");
-    item.textContent = host;
-    el.suggestedHosts.appendChild(item);
+    const li = document.createElement("li");
+    li.className = "chip";
+    li.textContent = host;
+    el.suggestedHosts.appendChild(li);
   }
 }
 
-function buildChip(text) {
-  const chip = document.createElement("span");
-  chip.className = "chip";
-  chip.textContent = text;
-  return chip;
-}
-
-function createEmptyMessage(text) {
-  const div = document.createElement("div");
-  div.className = "info-card";
-  div.innerHTML = `<p class="muted">${text}</p>`;
-  return div;
-}
-
-function formatCheckDetails(check) {
-  const parts = [];
-
-  if (check?.directIp) {
-    parts.push(`Без proxy: ${check.directIp}`);
-  }
-
-  if (check?.proxyIp) {
-    parts.push(`Через proxy: ${check.proxyIp}`);
-  }
-
-  return parts.join(" • ");
-}
-
-function formatProxyDecision(decision) {
-  if (!decision) {
-    return "";
-  }
-
-  const parts = [];
-
-  if (decision.scope === "test") {
-    parts.push("Тестовый запрос");
-  }
-
-  if (decision.matchedRuleHost) {
-    parts.push(`Правило: ${decision.matchedRuleHost}`);
-  }
-
-  if (decision.proxyType && decision.proxyHost) {
-    parts.push(
-      `Proxy: ${String(decision.proxyType).toUpperCase()} ${decision.proxyHost}:${decision.proxyPort}`
-    );
-  }
-
-  if (decision.url) {
-    parts.push(`URL: ${decision.url}`);
-  }
-
-  return parts.join(" • ");
-}
-
+/* ── Rule tiles ─────────────────────────────────────── */
 function renderRules(rules, proxies) {
   el.rulesList.textContent = "";
-
   if (!rules.length) {
-    el.rulesList.appendChild(createEmptyMessage("Пока нет сайтов, привязанных к proxy."));
+    el.rulesList.appendChild(emptyMsg("Нет сайтов под маршрутизацию."));
     return;
   }
-
   for (const rule of rules) {
     el.rulesList.appendChild(buildRuleTile(rule, proxies));
   }
@@ -250,131 +210,136 @@ function buildRuleTile(rule, proxies) {
   const tile = document.createElement("article");
   tile.className = "rule-tile";
 
-  const main = document.createElement("div");
-  main.className = "rule-main";
+  // ── header row
+  const header = document.createElement("div");
+  header.className = "rule-tile-header";
 
-  const title = document.createElement("div");
-  title.className = "rule-title";
-  title.textContent = rule.label || rule.matchHost;
+  const left = document.createElement("div");
 
-  const meta = document.createElement("p");
-  meta.className = "muted";
-  meta.textContent = rule.proxyName
-    ? `Конкретный proxy: ${rule.proxyName}`
-    : `Proxy по умолчанию: ${rule.effectiveProxyName || "не выбран"}`;
+  const hostname = document.createElement("span");
+  hostname.className = "rule-hostname";
 
-  const chips = document.createElement("div");
-  chips.className = "chips";
-  chips.append(
-    buildChip(rule.enabled ? "Включено" : "Выключено"),
-    buildChip(`Сайт: ${rule.matchHost || "не определён"}`)
-  );
+  const dot = document.createElement("span");
+  dot.className = `rule-dot ${rule.enabled ? "on" : "off"}`;
+  hostname.appendChild(dot);
+  hostname.append(rule.label || rule.matchHost);
 
-  main.append(title, meta, chips);
+  const proxyLabel = document.createElement("p");
+  proxyLabel.className = "rule-proxy-label";
+  proxyLabel.textContent = rule.proxyName
+    ? `Прокси: ${rule.proxyName}`
+    : `По умолчанию: ${rule.effectiveProxyName || "—"}`;
 
-  const gear = document.createElement("button");
-  gear.type = "button";
-  gear.className = "rule-gear";
-  gear.textContent = "⚙";
+  left.append(hostname, proxyLabel);
 
+  const expandBtn = document.createElement("button");
+  expandBtn.type = "button";
+  expandBtn.className = "rule-expand";
+  expandBtn.textContent = "···";
+  expandBtn.title = "Настройки правила";
+
+  header.append(left, expandBtn);
+
+  // ── menu (hidden by default)
   const menu = document.createElement("div");
   menu.className = "rule-menu hidden";
 
+  // proxy select row
   const proxyRow = document.createElement("div");
-  proxyRow.className = "menu-row";
+  proxyRow.className = "rule-proxy-row";
 
   const proxySelect = document.createElement("select");
-  const defaultOption = document.createElement("option");
-  defaultOption.value = "";
-  defaultOption.textContent = "Proxy по умолчанию";
-  proxySelect.appendChild(defaultOption);
-
-  for (const proxy of proxies) {
-    const option = document.createElement("option");
-    option.value = proxy.id;
-    option.textContent = proxy.name;
-    proxySelect.appendChild(option);
+  const defOption = document.createElement("option");
+  defOption.value = "";
+  defOption.textContent = "По умолчанию";
+  proxySelect.appendChild(defOption);
+  for (const px of proxies) {
+    const opt = document.createElement("option");
+    opt.value = px.id;
+    opt.textContent = px.name;
+    proxySelect.appendChild(opt);
   }
-
   proxySelect.value = rule.proxyId || "";
 
-  const assignButton = document.createElement("button");
-  assignButton.type = "button";
-  assignButton.className = "menu-button";
-  assignButton.textContent = "Сохранить";
-  assignButton.addEventListener("click", async () => {
+  const saveProxyBtn = document.createElement("button");
+  saveProxyBtn.type = "button";
+  saveProxyBtn.className = "btn btn-sm btn-ghost";
+  saveProxyBtn.textContent = "Сохранить";
+  saveProxyBtn.addEventListener("click", async () => {
     try {
       const raw = await browser.runtime.sendMessage({
         type: "rule:setProxy",
-        payload: { id: rule.id, proxyId: proxySelect.value || null }
+        payload: { id: rule.id, proxyId: proxySelect.value || null },
       });
       render(resolveViewModelSync(raw));
-      setStatus("Proxy для сайта обновлён.");
-    } catch (error) {
-      setStatus(error.message || "Ошибка.", true);
+      setStatus("Прокси для правила обновлён.");
+    } catch (err) {
+      setStatus(err.message || "Ошибка.", true);
     }
   });
 
-  proxyRow.append(proxySelect, assignButton);
+  proxyRow.append(proxySelect, saveProxyBtn);
 
+  // actions row
   const actionsRow = document.createElement("div");
-  actionsRow.className = "menu-row";
+  actionsRow.className = "proxy-actions-row";
 
-  const toggleButton = document.createElement("button");
-  toggleButton.type = "button";
-  toggleButton.className = "ghost";
-  toggleButton.textContent = rule.enabled ? "Выключить" : "Включить";
-  toggleButton.addEventListener("click", async () => {
+  const toggleBtn = document.createElement("button");
+  toggleBtn.type = "button";
+  toggleBtn.className = "btn btn-sm btn-ghost";
+  toggleBtn.textContent = rule.enabled ? "Выключить" : "Включить";
+  toggleBtn.addEventListener("click", async () => {
     try {
       const raw = await browser.runtime.sendMessage({
         type: "rule:toggle",
-        payload: { id: rule.id, enabled: !rule.enabled }
+        payload: { id: rule.id, enabled: !rule.enabled },
       });
       render(resolveViewModelSync(raw));
-      setStatus("Состояние правила обновлено.");
-    } catch (error) {
-      setStatus(error.message || "Ошибка.", true);
+      setStatus("Правило обновлено.");
+    } catch (err) {
+      setStatus(err.message || "Ошибка.", true);
     }
   });
 
-  const deleteButton = document.createElement("button");
-  deleteButton.type = "button";
-  deleteButton.className = "danger";
-  deleteButton.textContent = "Удалить";
-  deleteButton.addEventListener("click", async () => {
+  const deleteBtn = document.createElement("button");
+  deleteBtn.type = "button";
+  deleteBtn.className = "btn btn-sm btn-danger";
+  deleteBtn.textContent = "Удалить";
+  deleteBtn.addEventListener("click", async () => {
+    if (!confirm(`Удалить правило для «${rule.label || rule.matchHost}»?`)) return;
     try {
       const raw = await browser.runtime.sendMessage({
         type: "rule:remove",
-        payload: { id: rule.id }
+        payload: { id: rule.id },
       });
       render(resolveViewModelSync(raw));
       setStatus("Правило удалено.");
-    } catch (error) {
-      setStatus(error.message || "Ошибка.", true);
+    } catch (err) {
+      setStatus(err.message || "Ошибка.", true);
     }
   });
 
-  actionsRow.append(toggleButton, deleteButton);
+  actionsRow.append(toggleBtn, deleteBtn);
   menu.append(proxyRow, actionsRow);
 
-  gear.addEventListener("click", () => {
+  // expand toggle
+  expandBtn.addEventListener("click", () => {
     const isOpen = !menu.classList.contains("hidden");
     menu.classList.toggle("hidden", isOpen);
-    tile.classList.toggle("menu-open", !isOpen);
+    tile.classList.toggle("open", !isOpen);
   });
 
-  tile.append(main, gear, menu);
+  tile.append(header, menu);
   return tile;
 }
 
+/* ── Proxy cards ────────────────────────────────────── */
 function renderProxies(proxies, defaultProxyId) {
   el.proxyList.textContent = "";
-
   if (!proxies.length) {
-    el.proxyList.appendChild(createEmptyMessage("Список proxy пока пуст."));
+    el.proxyList.appendChild(emptyMsg("Список прокси пуст."));
     return;
   }
-
   for (const proxy of proxies) {
     el.proxyList.appendChild(buildProxyCard(proxy, defaultProxyId));
   }
@@ -384,106 +349,145 @@ function buildProxyCard(proxy, defaultProxyId) {
   const card = document.createElement("article");
   card.className = "proxy-card";
 
-  const main = document.createElement("div");
-  main.className = "proxy-main";
+  // header
+  const header = document.createElement("div");
+  header.className = "proxy-card-header";
 
-  const title = document.createElement("div");
-  title.className = "proxy-title";
-  title.textContent = proxy.name;
+  const name = document.createElement("span");
+  name.className = "proxy-card-name";
+  name.textContent = proxy.name;
 
-  const address = document.createElement("p");
-  address.className = "muted";
-  address.textContent = `${proxy.type.toUpperCase()} • ${proxy.host}:${proxy.port}`;
+  const addr = document.createElement("span");
+  addr.className = "proxy-card-addr";
+  addr.textContent = `${proxy.type.toUpperCase()} ${proxy.host}:${proxy.port}`;
 
+  header.append(name, addr);
+
+  // meta badges
   const meta = document.createElement("div");
-  meta.className = "proxy-meta";
-  meta.append(buildChip(proxy.authEnabled ? "Auth включён" : "Без auth"));
+  meta.className = "proxy-card-meta";
 
-  if (proxy.id === defaultProxyId) {
-    meta.append(buildChip("По умолчанию"));
-  }
+  if (proxy.id === defaultProxyId) meta.appendChild(badge("По умолчанию", "badge-default"));
+  if (proxy.authEnabled)          meta.appendChild(badge("Auth", "badge-auth"));
 
-  const check = document.createElement("p");
-  check.className = "muted small";
-  check.textContent = proxy.check?.message || "Подключение ещё не проверялось.";
+  const checkStatus = proxy.check?.status ?? "idle";
+  if (checkStatus === "success") meta.appendChild(badge("OK", "badge-success"));
+  else if (checkStatus === "error") meta.appendChild(badge("Ошибка", "badge-error"));
+  else meta.appendChild(badge("Не проверен", "badge-idle"));
 
-  const checkDetails = document.createElement("p");
-  checkDetails.className = "muted small";
-  checkDetails.textContent = formatCheckDetails(proxy.check);
+  // check message
+  const checkMsg = document.createElement("p");
+  checkMsg.className = "proxy-check-msg";
+  checkMsg.textContent = proxy.check?.message || "Соединение ещё не проверялось.";
 
-  main.append(title, address, meta, check, checkDetails);
+  const checkIps = document.createElement("p");
+  checkIps.className = "proxy-check-ips";
+  checkIps.textContent = formatCheckIps(proxy.check);
 
+  // actions
   const actions = document.createElement("div");
-  actions.className = "proxy-actions";
+  actions.className = "proxy-actions-row";
 
-  const defaultButton = document.createElement("button");
-  defaultButton.type = "button";
-  defaultButton.className = "proxy-action";
-  defaultButton.textContent = proxy.id === defaultProxyId ? "Текущий" : "Сделать основным";
-  defaultButton.disabled = proxy.id === defaultProxyId;
-  defaultButton.addEventListener("click", async () => {
+  const defaultBtn = document.createElement("button");
+  defaultBtn.type = "button";
+  defaultBtn.className = "btn btn-sm btn-ghost";
+  defaultBtn.textContent = proxy.id === defaultProxyId ? "Основной ✓" : "Сделать основным";
+  defaultBtn.disabled = proxy.id === defaultProxyId;
+  defaultBtn.addEventListener("click", async () => {
     try {
       const raw = await browser.runtime.sendMessage({
         type: "proxy:setDefault",
-        payload: { id: proxy.id }
+        payload: { id: proxy.id },
       });
       render(resolveViewModelSync(raw));
-      setStatus("Proxy по умолчанию обновлён.");
-    } catch (error) {
-      setStatus(error.message || "Ошибка.", true);
+      setStatus("Прокси по умолчанию обновлён.");
+    } catch (err) {
+      setStatus(err.message || "Ошибка.", true);
     }
   });
 
-  const testButton = document.createElement("button");
-  testButton.type = "button";
-  testButton.className = "ghost";
-  testButton.textContent = "Проверить";
-  testButton.addEventListener("click", async () => {
+  const testBtn = document.createElement("button");
+  testBtn.type = "button";
+  testBtn.className = "btn btn-sm btn-ghost";
+  testBtn.textContent = "Проверить";
+  testBtn.addEventListener("click", async () => {
     try {
-      setStatus("Проверяем подключение...");
-      const result = await browser.runtime.sendMessage({
-        type: "proxy:test",
-        payload: proxy
-      });
+      setStatus("Проверяем подключение…");
+      testBtn.disabled = true;
+      const result = await browser.runtime.sendMessage({ type: "proxy:test", payload: proxy });
       await refresh();
       setStatus(result.message, result.status === "error");
-    } catch (error) {
-      setStatus(error.message || "Ошибка.", true);
+    } catch (err) {
+      setStatus(err.message || "Ошибка.", true);
+    } finally {
+      testBtn.disabled = false;
     }
   });
 
-  const editButton = document.createElement("button");
-  editButton.type = "button";
-  editButton.className = "ghost";
-  editButton.textContent = "Редактировать";
-  editButton.addEventListener("click", () => {
-    startProxyEdit(proxy);
-  });
+  const editBtn = document.createElement("button");
+  editBtn.type = "button";
+  editBtn.className = "btn btn-sm btn-ghost";
+  editBtn.textContent = "Изменить";
+  editBtn.addEventListener("click", () => startProxyEdit(proxy));
 
-  const removeButton = document.createElement("button");
-  removeButton.type = "button";
-  removeButton.className = "danger";
-  removeButton.textContent = "Удалить";
-  removeButton.addEventListener("click", async () => {
+  const removeBtn = document.createElement("button");
+  removeBtn.type = "button";
+  removeBtn.className = "btn btn-sm btn-danger";
+  removeBtn.textContent = "Удалить";
+  removeBtn.addEventListener("click", async () => {
+    if (!confirm(`Удалить прокси «${proxy.name}»?`)) return;
     try {
       const raw = await browser.runtime.sendMessage({
         type: "proxy:remove",
-        payload: { id: proxy.id }
+        payload: { id: proxy.id },
       });
       render(resolveViewModelSync(raw));
-      setStatus("Proxy удалён.");
-    } catch (error) {
-      setStatus(error.message || "Ошибка.", true);
+      setStatus("Прокси удалён.");
+    } catch (err) {
+      setStatus(err.message || "Ошибка.", true);
     }
   });
 
-  actions.append(defaultButton, testButton, editButton, removeButton);
-  card.append(main, actions);
+  actions.append(defaultBtn, testBtn, editBtn, removeBtn);
+  card.append(header, meta, checkMsg, checkIps, actions);
   return card;
 }
 
-for (const button of el.tabButtons) {
-  button.addEventListener("click", () => switchTab(button.dataset.tab));
+/* ── Format helpers ─────────────────────────────────── */
+function formatCheckIps(check) {
+  const parts = [];
+  if (check?.directIp) parts.push(`Direct: ${check.directIp}`);
+  if (check?.proxyIp)  parts.push(`Proxy: ${check.proxyIp}`);
+  return parts.join("  ·  ");
+}
+
+function formatProxyDecision(decision) {
+  if (!decision) return "";
+  const parts = [];
+  if (decision.scope === "test") parts.push("TEST");
+  if (decision.matchedRuleHost)  parts.push(`rule=${decision.matchedRuleHost}`);
+  if (decision.proxyHost)        parts.push(`${decision.proxyType?.toUpperCase()} ${decision.proxyHost}:${decision.proxyPort}`);
+  if (decision.url)              parts.push(decision.url);
+  return parts.join("  ·  ");
+}
+
+function badge(text, cls) {
+  const span = document.createElement("span");
+  span.className = `badge ${cls}`;
+  span.textContent = text;
+  return span;
+}
+
+function emptyMsg(text) {
+  const div = document.createElement("div");
+  div.className = "empty-msg";
+  div.textContent = text;
+  return div;
+}
+
+/* ── Event listeners ────────────────────────────────── */
+for (const btn of el.tabButtons) {
+  btn.addEventListener("click", () => switchTab(btn.dataset.tab));
 }
 
 el.goToAddProxy.addEventListener("click", () => switchTab("proxies"));
@@ -496,12 +500,12 @@ el.extensionEnabled.addEventListener("change", async () => {
   try {
     const raw = await browser.runtime.sendMessage({
       type: "extension:setEnabled",
-      payload: { enabled: el.extensionEnabled.checked }
+      payload: { enabled: el.extensionEnabled.checked },
     });
     render(resolveViewModelSync(raw));
-    setStatus(el.extensionEnabled.checked ? "Proxy включён." : "Proxy выключен.");
-  } catch (error) {
-    setStatus(error.message || "Ошибка.", true);
+    setStatus(el.extensionEnabled.checked ? "Прокси включён." : "Прокси выключен.");
+  } catch (err) {
+    setStatus(err.message || "Ошибка.", true);
   }
 });
 
@@ -509,82 +513,79 @@ el.addCurrentSite.addEventListener("click", async () => {
   try {
     const raw = await browser.runtime.sendMessage({ type: "rule:addFromTab" });
     render(resolveViewModelSync(raw));
-    setStatus("Сайт добавлен в правила proxy.");
+    setStatus("Сайт добавлен в правила.");
     switchTab("settings");
-  } catch (error) {
-    setStatus(error.message || "Не удалось добавить сайт.", true);
+  } catch (err) {
+    setStatus(err.message || "Не удалось добавить сайт.", true);
   }
 });
 
+// BUG FIX: Disable submit during save (proxy test takes up to 12s)
 el.proxyForm.addEventListener("submit", async (event) => {
   event.preventDefault();
+  const editingId = el.proxyId.value || null;
+
+  el.proxySubmit.disabled = true;
+  el.proxySubmit.textContent = "Проверка…";
 
   try {
-    const editingProxyId = el.proxyId.value || null;
     const raw = await browser.runtime.sendMessage({
       type: "proxy:save",
-      payload: getProxyPayload()
+      payload: getProxyPayload(),
     });
-
-    const wasEditing = Boolean(editingProxyId);
+    const wasEditing = Boolean(editingId);
     resetProxyForm();
-
     render(resolveViewModelSync(raw));
-    const savedProxy = wasEditing
-      ? raw.proxies.find((proxy) => proxy.id === editingProxyId)
+    const saved = wasEditing
+      ? raw.proxies.find((p) => p.id === editingId)
       : raw.proxies[0];
-    const details = savedProxy?.check ? formatCheckDetails(savedProxy.check) : "";
+    const ips = saved?.check ? formatCheckIps(saved.check) : "";
     setStatus(
-      details
-        ? `${wasEditing ? "Proxy обновлён." : "Proxy сохранён."} ${details}`
-        : wasEditing
-          ? "Proxy обновлён."
-          : "Proxy сохранён."
+      [wasEditing ? "Прокси обновлён." : "Прокси сохранён.", ips].filter(Boolean).join("  ")
     );
-  } catch (error) {
-    setStatus(error.message || "Не удалось сохранить proxy.", true);
+  } catch (err) {
+    setStatus(err.message || "Не удалось сохранить.", true);
+  } finally {
+    el.proxySubmit.disabled = false;
+    el.proxySubmit.textContent = "Сохранить";
   }
 });
 
 el.cancelProxyEdit.addEventListener("click", () => {
   resetProxyForm();
-  setStatus("Редактирование proxy отменено.");
+  setStatus("Редактирование отменено.");
 });
 
+// BUG FIX: Update port only if it matches the default for the PREVIOUS type
 el.proxyType.addEventListener("change", () => {
-  if (!el.proxyPort.value) {
-    el.proxyPort.value = getDefaultPortForType(el.proxyType.value);
+  const prevDefault = DEFAULT_PORTS[lastProxyType];
+  const nextType = el.proxyType.value;
+  if (!el.proxyPort.value || el.proxyPort.value === prevDefault) {
+    el.proxyPort.value = DEFAULT_PORTS[nextType];
   }
+  lastProxyType = nextType;
 });
 
 el.testProxyButton.addEventListener("click", async () => {
   const payload = getProxyPayload();
-
   if (!payload.host || !payload.port) {
-    setStatus("Заполните host и port перед проверкой.", true);
+    setStatus("Укажите хост и порт.", true);
     return;
   }
-
-  setStatus("Проверяем подключение...");
+  setStatus("Проверяем подключение…");
   el.testProxyButton.disabled = true;
-
   try {
-    const result = await browser.runtime.sendMessage({
-      type: "proxy:test",
-      payload
-    });
-    const details = formatCheckDetails(result);
-    setStatus(
-      details ? `${result.message} ${details}` : result.message,
-      result.status === "error"
-    );
-  } catch (error) {
-    setStatus(error.message || "Ошибка при проверке.", true);
+    const result = await browser.runtime.sendMessage({ type: "proxy:test", payload });
+    const ips = formatCheckIps(result);
+    setStatus([result.message, ips].filter(Boolean).join("  "), result.status === "error");
+  } catch (err) {
+    setStatus(err.message || "Ошибка при проверке.", true);
   } finally {
     el.testProxyButton.disabled = false;
   }
 });
 
+/* ── Init ───────────────────────────────────────────── */
 switchTab(activeTabName);
 resetProxyForm();
 
@@ -594,6 +595,4 @@ browser.tabs
     lastActiveTab = tabs[0] ?? null;
     return refresh();
   })
-  .catch((error) => {
-    setStatus(error.message || "Не удалось загрузить состояние.", true);
-  });
+  .catch((err) => setStatus(err.message || "Не удалось загрузить состояние.", true));
