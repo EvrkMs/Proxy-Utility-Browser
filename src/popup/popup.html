@@ -20,10 +20,20 @@
           </svg>
           <span class="brand-name">ProxyBrowser</span>
         </div>
-        <label class="power-toggle" data-i18n-title="toggleRoutingTitle" title="Enable or disable routing">
-          <input id="extension-enabled" type="checkbox">
-          <span class="power-track"><span class="power-thumb"></span></span>
-        </label>
+        <div class="header-actions">
+          <label class="locale-select-wrap">
+            <span class="sr-only" data-i18n="localeSelectLabel">Interface language</span>
+            <select id="locale-select" class="locale-select" data-i18n-title="localeSelectTitle" title="Choose interface language">
+              <option value="auto" data-i18n="localeAutoOption">Auto</option>
+              <option value="ru">RU</option>
+              <option value="en">EN</option>
+            </select>
+          </label>
+          <label class="power-toggle" data-i18n-title="toggleRoutingTitle" title="Enable or disable routing">
+            <input id="extension-enabled" type="checkbox">
+            <span class="power-track"><span class="power-thumb"></span></span>
+          </label>
+        </div>
       </header>
 
       <!-- ── Panels ── -->

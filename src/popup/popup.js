@@ -1,11 +1,65 @@
 import { resolveViewModel } from "./state.js";
 
+const LOCALE_STORAGE_KEY = "popup-locale-override";
+const SUPPORTED_LOCALES = ["en", "ru"];
+const localeMessagesCache = new Map();
+let currentLocale = "en";
+let currentMessages = {};
+
+function resolveBrowserLocale() {
+  const uiLocale = String(browser.i18n.getUILanguage() || "en").toLowerCase();
+  return SUPPORTED_LOCALES.find((locale) => uiLocale === locale || uiLocale.startsWith(`${locale}-`)) || "en";
+}
+
+async function loadLocaleMessages(locale) {
+  if (localeMessagesCache.has(locale)) {
+    return localeMessagesCache.get(locale);
+  }
+
+  const response = await fetch(browser.runtime.getURL(`_locales/${locale}/messages.json`));
+
+  if (!response.ok) {
+    throw new Error(`Failed to load locale: ${locale}`);
+  }
+
+  const messages = await response.json();
+  localeMessagesCache.set(locale, messages);
+  return messages;
+}
+
+async function applyLocale(locale) {
+  currentLocale = locale;
+  currentMessages = await loadLocaleMessages(locale);
+  applyLocalization();
+}
+
 function t(key, substitutions) {
-  return browser.i18n.getMessage(key, substitutions) || key;
+  const entry = currentMessages[key];
+
+  if (!entry?.message) {
+    return browser.i18n.getMessage(key, substitutions) || key;
+  }
+
+  let message = entry.message;
+  const values = Array.isArray(substitutions)
+    ? substitutions
+    : substitutions != null
+      ? [substitutions]
+      : [];
+
+  for (const [name, placeholder] of Object.entries(entry.placeholders ?? {})) {
+    const match = /\$(\d+)/.exec(placeholder.content ?? "");
+    const index = match ? Number(match[1]) - 1 : -1;
+    const replacement = index >= 0 ? String(values[index] ?? "") : "";
+    const token = new RegExp(`\\$${name}\\$`, "gi");
+    message = message.replace(token, replacement);
+  }
+
+  return message;
 }
 
 function applyLocalization() {
-  document.documentElement.lang = browser.i18n.getUILanguage();
+  document.documentElement.lang = currentLocale;
 
   for (const node of document.querySelectorAll("[data-i18n]")) {
     node.textContent = t(node.dataset.i18n);
@@ -24,6 +78,13 @@ function applyLocalization() {
   }
 
   document.title = t("popupTitle");
+  if (el.localeSelect) {
+    const localeLabel = t("localeAutoOption");
+    const autoOption = el.localeSelect.querySelector('option[value="auto"]');
+    if (autoOption) {
+      autoOption.textContent = localeLabel;
+    }
+  }
 }
 
 /* ── Element refs ───────────────────────────────────── */
@@ -68,6 +129,7 @@ const el = {
   proxyList:        document.getElementById("proxy-list"),
   defaultProxyLabel:document.getElementById("default-proxy-label"),
   status:           document.getElementById("status"),
+  localeSelect:     document.getElementById("locale-select"),
 };
 
 /* ── Status helper ──────────────────────────────────── */
@@ -121,7 +183,8 @@ const RULE_TEMPLATES = [
       "chatgpt.com",
       "x.ai",
       "grok.com",
-      "github.com",
+      "github.com/copilot",
+      "copilot.microsoft.com",
       "claude.ai",
       "claude.com",
       "gemini.google.com"
@@ -196,6 +259,16 @@ function resolveViewModelSync(rawState) {
 async function refresh() {
   const vm = await fetchViewModel();
   render(vm);
+}
+
+async function initializeLocale() {
+  const stored = await browser.storage.local.get(LOCALE_STORAGE_KEY);
+  const override = String(stored[LOCALE_STORAGE_KEY] ?? "auto");
+  const locale = override === "auto" ? resolveBrowserLocale() : override;
+  await applyLocale(locale);
+  if (el.localeSelect) {
+    el.localeSelect.value = override;
+  }
 }
 
 /* ── Render ─────────────────────────────────────────── */
@@ -600,6 +673,15 @@ for (const btn of el.tabButtons) {
 
 el.goToAddProxy.addEventListener("click", () => switchTab("proxies"));
 
+el.localeSelect?.addEventListener("change", async () => {
+  const override = el.localeSelect.value || "auto";
+  const locale = override === "auto" ? resolveBrowserLocale() : override;
+
+  await browser.storage.local.set({ [LOCALE_STORAGE_KEY]: override });
+  await applyLocale(locale);
+  await refresh();
+});
+
 el.proxyAuthEnabled.addEventListener("change", () => {
   el.authFields.classList.toggle("hidden", !el.proxyAuthEnabled.checked);
 });
@@ -721,12 +803,11 @@ el.testProxyButton.addEventListener("click", async () => {
 });
 
 /* ── Init ───────────────────────────────────────────── */
-applyLocalization();
 switchTab(activeTabName);
 resetProxyForm();
 
-browser.tabs
-  .query({ active: true, currentWindow: true })
+initializeLocale()
+  .then(() => browser.tabs.query({ active: true, currentWindow: true }))
   .then((tabs) => {
     lastActiveTab = tabs[0] ?? null;
     return refresh();
