@@ -5,8 +5,14 @@
   "description": "Firefox extension for routing selected sites through a configured proxy.",
   "browser_specific_settings": {
     "gecko": {
-      "id": "proxy-browser@local",
-      "strict_min_version": "91.1.0"
+      "id": "proxy-browser@evrkms",
+      "strict_min_version": "148.0",
+      "data_collection_permissions": {
+        "required": ["none"]
+      }
+    },
+    "gecko_android": {
+      "strict_min_version": "142.0"
     }
   },
   "permissions": [

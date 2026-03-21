@@ -9,6 +9,7 @@
     "run": "web-ext run --source-dir . --firefox=firefox"
   },
   "devDependencies": {
+    "addons-linter": "^10.1.0",
     "web-ext": "^8.8.0"
   }
 }
