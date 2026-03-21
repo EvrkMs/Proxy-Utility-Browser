@@ -86,6 +86,44 @@ export function tryGetHostname(url) {
   }
 }
 
+export function tryGetPathname(url) {
+  if (!url) {
+    return "";
+  }
+
+  try {
+    return normalizePathPrefix(new URL(url).pathname);
+  } catch {
+    return "";
+  }
+}
+
+export function normalizePathPrefix(value) {
+  const raw = String(value ?? "").trim();
+
+  if (!raw || raw === "/") {
+    return "";
+  }
+
+  let path = raw;
+
+  try {
+    path = new URL(raw).pathname || "/";
+  } catch {
+    if (!path.startsWith("/")) {
+      path = `/${path}`;
+    }
+  }
+
+  path = path.trim();
+
+  if (!path.startsWith("/")) {
+    path = `/${path}`;
+  }
+
+  return path.replace(/\/+$/, "") || "";
+}
+
 export function normalizeProxy(proxy) {
   const normalizedType =
     proxy.type === "http" || proxy.type === "https" || proxy.type === "socks" || proxy.type === "socks4"
@@ -125,12 +163,14 @@ export function normalizeProxyCheck(check) {
 export function normalizeRule(rule) {
   const uniqueHosts = Array.from(new Set((rule.hosts ?? []).map(normalizeHost).filter(Boolean)));
   const matchHost = normalizeHost(rule.matchHost ?? uniqueHosts[0] ?? "");
+  const pathPrefix = normalizePathPrefix(rule.pathPrefix);
 
   return {
     id: rule.id ?? makeId("rule"),
-    label: String(rule.label ?? matchHost ?? "Unnamed rule").trim(),
+    label: String(rule.label ?? `${matchHost}${pathPrefix}` ?? "Unnamed rule").trim(),
     enabled: rule.enabled !== false,
     matchHost,
+    pathPrefix,
     proxyId: rule.proxyId ?? null,
     hosts: uniqueHosts
   };

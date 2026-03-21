@@ -301,6 +301,52 @@ a { color: var(--accent); }
 /* ── Item list ──────────────────────────────────────── */
 .item-list { display: grid; gap: 7px; }
 
+.template-block {
+  display: grid;
+  gap: 7px;
+}
+
+.template-list {
+  display: grid;
+  gap: 7px;
+}
+
+.template-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+.template-meta {
+  display: grid;
+  gap: 2px;
+}
+
+.template-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.template-hosts {
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.manual-rule-form {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  align-items: end;
+  margin-bottom: 8px;
+}
+
 .empty-msg {
   background: var(--surface);
   border: 1px solid var(--border);

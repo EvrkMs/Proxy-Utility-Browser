@@ -5,7 +5,7 @@ import * as SiteRouter from "./SiteRouter.js";
 export function registerBrowserListeners() {
   browser.webRequest.onBeforeRequest.addListener(
     (details) => {
-      SiteRouter.onRequestSeen(details.tabId, details.url);
+      SiteRouter.onRequestSeen(details.tabId, details.url, details.type);
     },
     { urls: ["<all_urls>"] }
   );
@@ -49,10 +49,16 @@ export function registerBrowserListeners() {
         return { type: "direct" };
       }
 
-      const rule = requestInfo.tabId >= 0 ? SiteRouter.findMatchingRule(requestInfo.tabId) : null;
+      const rule =
+        (requestInfo.tabId >= 0 ? SiteRouter.findMatchingRule(requestInfo.tabId) : null) ||
+        SiteRouter.findMatchingRuleForUrl(requestInfo.url);
 
       if (!rule) {
         return { type: "direct" };
+      }
+
+      if (requestInfo.tabId >= 0) {
+        SiteRouter.rememberTabSite(requestInfo.tabId, requestInfo.url);
       }
 
       const effectiveProxy = ProxyService.getEffectiveForRule(rule);
@@ -93,7 +99,9 @@ export function registerBrowserListeners() {
         return {};
       }
 
-      const rule = details.tabId >= 0 ? SiteRouter.findMatchingRule(details.tabId) : null;
+      const rule =
+        (details.tabId >= 0 ? SiteRouter.findMatchingRule(details.tabId) : null) ||
+        SiteRouter.findMatchingRuleForUrl(details.url);
       const proxy = ProxyService.getEffectiveForRule(rule);
       const credentials = ProxyService.getAuthCredentials(proxy);
 
@@ -159,6 +167,14 @@ async function handleMessage(message) {
         await SiteRouter.addRuleFromTab(tab.id, tab.url);
         return getState();
       }
+
+    case "rule:addManual":
+      await SiteRouter.addManualRule(message.payload?.value);
+      return getState();
+
+    case "rule:addTemplate":
+      await SiteRouter.addManualRules(message.payload?.values ?? []);
+      return getState();
 
     case "rule:remove":
       await SiteRouter.removeRule(message.payload?.id);

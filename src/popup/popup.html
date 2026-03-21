@@ -82,6 +82,24 @@
             <h2 class="panel-title">Правила</h2>
             <p class="panel-sub">Сайты, маршрутизируемые через прокси</p>
           </div>
+
+          <div class="template-block">
+            <span class="label-micro">ШАБЛОНЫ</span>
+            <div id="template-list" class="template-list"></div>
+          </div>
+
+          <form id="manual-rule-form" class="manual-rule-form" autocomplete="off" novalidate>
+            <label class="field">
+              <span class="field-lbl">Добавить сайт вручную</span>
+              <input
+                id="manual-rule-host"
+                type="text"
+                placeholder="example.com, github.com/copilot или https://example.com/path"
+              >
+            </label>
+            <button id="manual-rule-submit" class="btn btn-primary" type="submit">Добавить</button>
+          </form>
+
           <div id="rules-list" class="item-list"></div>
         </section>
 

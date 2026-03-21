@@ -19,6 +19,10 @@ const el = {
   proxyDecisionCard:document.getElementById("proxy-decision-card"),
   proxyDecisionText:document.getElementById("proxy-decision-text"),
   suggestedHosts:   document.getElementById("suggested-hosts"),
+  templateList:     document.getElementById("template-list"),
+  manualRuleForm:   document.getElementById("manual-rule-form"),
+  manualRuleHost:   document.getElementById("manual-rule-host"),
+  manualRuleSubmit: document.getElementById("manual-rule-submit"),
   rulesList:        document.getElementById("rules-list"),
   proxyForm:        document.getElementById("proxy-form"),
   proxyId:          document.getElementById("proxy-id"),
@@ -72,6 +76,32 @@ function switchTab(tabName) {
 /* ── Port defaults ──────────────────────────────────── */
 const DEFAULT_PORTS = { http: "80", https: "443", socks: "1080", socks4: "1080" };
 let lastProxyType = "https";
+const RULE_TEMPLATES = [
+  {
+    id: "youtube",
+    title: "YouTube",
+    values: ["youtube.com", "www.youtube.com"]
+  },
+  {
+    id: "discord",
+    title: "Discord",
+    values: ["discord.com", "www.discord.com"]
+  },
+  {
+    id: "ai",
+    title: "Нейросети",
+    values: [
+      "openai.com",
+      "chatgpt.com",
+      "x.ai",
+      "grok.com",
+      "github.com",
+      "claude.ai",
+      "claude.com",
+      "gemini.google.com"
+    ]
+  }
+];
 
 function getDefaultPort(type) {
   return DEFAULT_PORTS[type] ?? "443";
@@ -151,7 +181,7 @@ function render(vm) {
   // Site card
   el.currentSite.textContent = vm.activeTab?.hostname || "Нет активной вкладки";
   el.currentMode.textContent = vm.activeRuleId
-    ? `Маршрут: ${vm.activeProxyName || "прокси по умолчанию"}`
+    ? `Маршрут: ${vm.activeProxyName || "прокси по умолчанию"} · ${formatRuleTarget(vm.activeRule)}`
     : "Правило для этого сайта не создано.";
   el.siteCard.classList.toggle("is-proxied", Boolean(vm.activeRuleId && vm.enabled));
 
@@ -173,8 +203,52 @@ function render(vm) {
   el.proxyDecisionText.textContent = formatProxyDecision(vm.lastProxyDecision);
 
   renderSuggestedHosts(vm.suggestedHosts);
+  renderTemplates();
   renderRules(vm.rules, vm.proxies);
   renderProxies(vm.proxies, vm.defaultProxyId);
+}
+
+function renderTemplates() {
+  el.templateList.textContent = "";
+
+  for (const template of RULE_TEMPLATES) {
+    const card = document.createElement("div");
+    card.className = "template-card";
+
+    const meta = document.createElement("div");
+    meta.className = "template-meta";
+
+    const title = document.createElement("div");
+    title.className = "template-title";
+    title.textContent = template.title;
+
+    const hosts = document.createElement("div");
+    hosts.className = "template-hosts";
+    hosts.textContent = template.values.join(", ");
+
+    meta.append(title, hosts);
+
+    const addButton = document.createElement("button");
+    addButton.type = "button";
+    addButton.className = "btn btn-sm btn-primary";
+    addButton.textContent = "+";
+    addButton.title = `Добавить шаблон ${template.title}`;
+    addButton.addEventListener("click", async () => {
+      try {
+        const raw = await browser.runtime.sendMessage({
+          type: "rule:addTemplate",
+          payload: { values: template.values },
+        });
+        render(resolveViewModelSync(raw));
+        setStatus(`Шаблон «${template.title}» добавлен.`);
+      } catch (err) {
+        setStatus(err.message || "Не удалось добавить шаблон.", true);
+      }
+    });
+
+    card.append(meta, addButton);
+    el.templateList.appendChild(card);
+  }
 }
 
 function renderSuggestedHosts(hosts) {
@@ -222,7 +296,7 @@ function buildRuleTile(rule, proxies) {
   const dot = document.createElement("span");
   dot.className = `rule-dot ${rule.enabled ? "on" : "off"}`;
   hostname.appendChild(dot);
-  hostname.append(rule.label || rule.matchHost);
+  hostname.append(formatRuleTarget(rule));
 
   const proxyLabel = document.createElement("p");
   proxyLabel.className = "rule-proxy-label";
@@ -461,6 +535,14 @@ function formatCheckIps(check) {
   return parts.join("  ·  ");
 }
 
+function formatRuleTarget(rule) {
+  if (!rule) {
+    return "";
+  }
+
+  return `${rule.matchHost || rule.label || ""}${rule.pathPrefix || ""}`;
+}
+
 function formatProxyDecision(decision) {
   if (!decision) return "";
   const parts = [];
@@ -517,6 +599,33 @@ el.addCurrentSite.addEventListener("click", async () => {
     switchTab("settings");
   } catch (err) {
     setStatus(err.message || "Не удалось добавить сайт.", true);
+  }
+});
+
+el.manualRuleForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+
+  const value = el.manualRuleHost.value.trim();
+
+  if (!value) {
+    setStatus("Укажите сайт или URL.", true);
+    return;
+  }
+
+  el.manualRuleSubmit.disabled = true;
+
+  try {
+    const raw = await browser.runtime.sendMessage({
+      type: "rule:addManual",
+      payload: { value },
+    });
+    el.manualRuleHost.value = "";
+    render(resolveViewModelSync(raw));
+    setStatus("Правило добавлено вручную.");
+  } catch (err) {
+    setStatus(err.message || "Не удалось добавить сайт.", true);
+  } finally {
+    el.manualRuleSubmit.disabled = false;
   }
 });
 
