@@ -50,15 +50,14 @@ export function registerBrowserListeners() {
       }
 
       const rule =
-        (requestInfo.tabId >= 0 ? SiteRouter.findMatchingRule(requestInfo.tabId) : null) ||
-        SiteRouter.findMatchingRuleForUrl(requestInfo.url);
+        requestInfo.type === "main_frame"
+          ? SiteRouter.findMatchingRuleForUrl(requestInfo.url)
+          : requestInfo.tabId >= 0
+            ? SiteRouter.findMatchingRule(requestInfo.tabId)
+            : null;
 
       if (!rule) {
         return { type: "direct" };
-      }
-
-      if (requestInfo.tabId >= 0) {
-        SiteRouter.rememberTabSite(requestInfo.tabId, requestInfo.url);
       }
 
       const effectiveProxy = ProxyService.getEffectiveForRule(rule);
@@ -99,9 +98,7 @@ export function registerBrowserListeners() {
         return {};
       }
 
-      const rule =
-        (details.tabId >= 0 ? SiteRouter.findMatchingRule(details.tabId) : null) ||
-        SiteRouter.findMatchingRuleForUrl(details.url);
+      const rule = details.tabId >= 0 ? SiteRouter.findMatchingRule(details.tabId) : null;
       const proxy = ProxyService.getEffectiveForRule(rule);
       const credentials = ProxyService.getAuthCredentials(proxy);
 
