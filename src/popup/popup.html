@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Proxy Browser</title>
+    <link rel="stylesheet" href="popup.css">
+  </head>
+  <body>
+    <main class="app">
+      <header class="hero">
+        <div>
+          <p class="eyebrow">Proxy Browser</p>
+          <h1>Управление прокси для сайтов</h1>
+          <p class="subtitle">Правила привязываются к сайту в адресной строке, а не ко всем общим доменам.</p>
+        </div>
+      </header>
+
+      <section id="tab-home" class="view panel" data-tab-panel="home">
+        <div class="home-top">
+          <div>
+            <p class="section-label">Главная</p>
+            <h2 id="current-site">Нет активной вкладки</h2>
+            <p id="current-mode" class="muted">Прокси сейчас не используется.</p>
+          </div>
+          <label class="toggle-card">
+            <span>Вкл</span>
+            <input id="extension-enabled" type="checkbox">
+            <span class="switch"></span>
+          </label>
+        </div>
+
+        <div id="no-proxy-state" class="empty-state">
+          <div>
+            <strong>Пока не добавлен ни один proxy</strong>
+            <p class="muted">Сначала сохраните хотя бы один proxy-профиль, после этого можно будет включать маршрутизацию.</p>
+          </div>
+          <button id="go-to-add-proxy" class="primary" type="button">Добавить proxy</button>
+        </div>
+
+        <div id="home-actions" class="stack">
+          <button id="add-current-site" class="primary wide" type="button">Добавить текущий сайт в proxy</button>
+
+          <div class="info-card">
+            <p class="info-title">Для текущей вкладки</p>
+            <p id="active-proxy-label" class="muted">Будет использован proxy по умолчанию.</p>
+          </div>
+
+          <div class="info-card">
+            <div class="row compact">
+              <p class="info-title">Замеченные хосты</p>
+              <span class="muted small">контекст вкладки</span>
+            </div>
+            <ul id="suggested-hosts" class="chips"></ul>
+          </div>
+        </div>
+      </section>
+
+      <section id="tab-settings" class="view panel hidden" data-tab-panel="settings">
+        <div class="section-header">
+          <div>
+            <p class="section-label">Настройка</p>
+            <h2>Сайты под proxy</h2>
+            <p class="muted">На правом краю карточки доступна настройка конкретного proxy или удаление правила.</p>
+          </div>
+        </div>
+
+        <div id="rules-list" class="tiles"></div>
+      </section>
+
+      <section id="tab-proxies" class="view panel hidden" data-tab-panel="proxies">
+        <div class="section-header">
+          <div>
+            <p class="section-label">Прокси</p>
+            <h2>Профили proxy</h2>
+            <p class="muted">Локально сохраняются у клиента и могут быть назначены по умолчанию или для конкретного сайта.</p>
+          </div>
+        </div>
+
+        <form id="proxy-form" class="stack">
+          <div class="two-columns">
+            <label class="field">
+              <span>Название</span>
+              <input id="proxy-name" name="proxy-name" type="text" placeholder="Основной HTTPS">
+            </label>
+
+            <label class="field">
+              <span>Протокол</span>
+              <select id="proxy-type" name="proxy-type">
+                <option value="https">HTTPS</option>
+                <option value="http">HTTP</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="two-columns">
+            <label class="field">
+              <span>Proxy host</span>
+              <input id="proxy-host" name="proxy-host" type="text" placeholder="proxy.example.com">
+            </label>
+
+            <label class="field">
+              <span>Port</span>
+              <input id="proxy-port" name="proxy-port" type="number" min="1" max="65535" placeholder="443">
+            </label>
+          </div>
+
+          <label class="auth-toggle">
+            <span>Нужны login и password</span>
+            <input id="proxy-auth-enabled" type="checkbox">
+            <span class="switch"></span>
+          </label>
+
+          <div id="auth-fields" class="two-columns hidden">
+            <label class="field">
+              <span>Login</span>
+              <input id="proxy-username" name="proxy-username" type="text" placeholder="username">
+            </label>
+
+            <label class="field">
+              <span>Password</span>
+              <input id="proxy-password" name="proxy-password" type="password" placeholder="password">
+            </label>
+          </div>
+
+          <div class="form-actions">
+            <button class="ghost" id="test-proxy-form" type="button">Проверить proxy</button>
+            <button class="primary" type="submit">Сохранить proxy</button>
+          </div>
+        </form>
+
+        <div class="list-header">
+          <p class="info-title">Сохранённые proxy</p>
+          <p id="default-proxy-label" class="muted small">Proxy по умолчанию не выбран.</p>
+        </div>
+        <div id="proxy-list" class="tiles"></div>
+      </section>
+
+      <p id="status" class="status" aria-live="polite"></p>
+
+      <nav class="tab-selector" aria-label="Навигация popup">
+        <button class="tab-button active" type="button" data-tab="home">Главная</button>
+        <button class="tab-button" type="button" data-tab="settings">Настройка</button>
+        <button class="tab-button" type="button" data-tab="proxies">Прокси</button>
+      </nav>
+    </main>
+
+    <script src="popup.js"></script>
+  </body>
+  </html>

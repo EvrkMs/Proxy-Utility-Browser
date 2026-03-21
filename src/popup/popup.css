@@ -1,0 +1,412 @@
+:root {
+  color-scheme: light;
+  font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+  color: #102235;
+  background:
+    radial-gradient(circle at top right, rgba(35, 116, 255, 0.16), transparent 36%),
+    linear-gradient(180deg, #edf6ff 0%, #f8fbff 52%, #ecf1f7 100%);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 430px;
+  background: transparent;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+button {
+  border: none;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.app {
+  padding: 14px;
+  display: grid;
+  gap: 12px;
+}
+
+.hero,
+.panel,
+.tab-selector {
+  background: rgba(255, 255, 255, 0.88);
+  border: 1px solid rgba(16, 34, 53, 0.08);
+  border-radius: 18px;
+  box-shadow: 0 14px 34px rgba(16, 34, 53, 0.09);
+  backdrop-filter: blur(10px);
+}
+
+.hero,
+.panel {
+  padding: 16px;
+}
+
+.tab-selector {
+  padding: 8px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.tab-button {
+  background: transparent;
+  color: #4f6478;
+  border-radius: 12px;
+  padding: 10px 8px;
+  font-weight: 700;
+}
+
+.tab-button.active {
+  background: linear-gradient(135deg, #0058b8 0%, #0083cf 100%);
+  color: #fff;
+}
+
+.hidden {
+  display: none !important;
+}
+
+h1,
+h2,
+p {
+  margin: 0;
+}
+
+h1 {
+  font-size: 22px;
+  line-height: 1.15;
+}
+
+h2 {
+  font-size: 18px;
+  line-height: 1.2;
+}
+
+.eyebrow,
+.section-label {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 11px;
+  font-weight: 700;
+  color: #4f76a1;
+}
+
+.subtitle,
+.muted {
+  color: #5b6d81;
+}
+
+.subtitle {
+  margin-top: 8px;
+  max-width: 32ch;
+}
+
+.small {
+  font-size: 12px;
+}
+
+.stack {
+  display: grid;
+  gap: 12px;
+}
+
+.home-top,
+.section-header,
+.row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.compact {
+  align-items: center;
+}
+
+.toggle-card,
+.auth-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: #eef5fb;
+  border-radius: 999px;
+  padding: 8px 12px;
+  font-weight: 700;
+  color: #24415e;
+}
+
+.toggle-card input,
+.auth-toggle input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.switch {
+  width: 44px;
+  height: 24px;
+  border-radius: 999px;
+  background: #c5d2df;
+  position: relative;
+  transition: background 0.2s ease;
+}
+
+.switch::after {
+  content: "";
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  transition: transform 0.2s ease;
+  box-shadow: 0 2px 6px rgba(16, 34, 53, 0.18);
+}
+
+input:checked + .switch {
+  background: linear-gradient(135deg, #0058b8 0%, #0083cf 100%);
+}
+
+input:checked + .switch::after {
+  transform: translateX(20px);
+}
+
+.empty-state,
+.info-card,
+.proxy-card,
+.rule-tile {
+  border-radius: 16px;
+  border: 1px solid rgba(16, 34, 53, 0.08);
+}
+
+.empty-state {
+  margin-top: 12px;
+  padding: 14px;
+  background: linear-gradient(135deg, #f6fbff 0%, #edf4ff 100%);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.info-card {
+  padding: 12px 14px;
+  background: rgba(242, 247, 252, 0.9);
+}
+
+.info-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #1b3752;
+}
+
+.wide {
+  width: 100%;
+}
+
+.form-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.form-actions > button {
+  flex: 1;
+}
+
+.primary,
+.ghost,
+.danger,
+.menu-button,
+.proxy-action {
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+
+.primary {
+  background: linear-gradient(135deg, #0058b8 0%, #0083cf 100%);
+  color: #fff;
+  font-weight: 700;
+}
+
+.ghost,
+.menu-button,
+.proxy-action {
+  background: #eaf1f8;
+  color: #19324a;
+}
+
+.danger {
+  background: #fdecec;
+  color: #9d261d;
+}
+
+.field {
+  display: grid;
+  gap: 6px;
+}
+
+.field span {
+  font-size: 12px;
+  font-weight: 700;
+  color: #2b4764;
+}
+
+input[type="text"],
+input[type="password"],
+input[type="number"],
+select {
+  width: 100%;
+  border: 1px solid rgba(16, 34, 53, 0.14);
+  border-radius: 12px;
+  background: #fff;
+  padding: 10px 12px;
+  color: #102235;
+}
+
+.two-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.tiles {
+  margin-top: 12px;
+  display: grid;
+  gap: 10px;
+}
+
+.rule-tile,
+.proxy-card {
+  background: rgba(248, 251, 255, 0.88);
+  padding: 12px;
+}
+
+.rule-tile {
+  position: relative;
+  padding-right: 58px;
+}
+
+.rule-main,
+.proxy-main {
+  display: grid;
+  gap: 6px;
+}
+
+.rule-title,
+.proxy-title {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.chips {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.chips li,
+.chip {
+  border-radius: 999px;
+  background: #e3f0ff;
+  color: #0058b8;
+  padding: 6px 10px;
+  font-size: 12px;
+}
+
+.rule-gear {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  background: #e8eef5;
+  color: #213b56;
+  font-size: 16px;
+  opacity: 0.35;
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.rule-tile:hover .rule-gear,
+.rule-tile.menu-open .rule-gear {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.rule-menu {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(16, 34, 53, 0.08);
+  display: grid;
+  gap: 10px;
+}
+
+.menu-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.menu-row select {
+  flex: 1;
+}
+
+.proxy-card {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.proxy-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.proxy-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  background: #edf4ff;
+  color: #24527d;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.status {
+  min-height: 18px;
+  padding: 0 2px;
+  font-size: 12px;
+  color: #3a5e81;
+}
