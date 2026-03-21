@@ -46,6 +46,11 @@
             <p id="active-proxy-label" class="muted">Будет использован proxy по умолчанию.</p>
           </div>
 
+          <div id="proxy-error-card" class="info-card hidden">
+            <p class="info-title">Последняя ошибка proxy API</p>
+            <p id="proxy-error-text" class="muted"></p>
+          </div>
+
           <div class="info-card">
             <div class="row compact">
               <p class="info-title">Замеченные хосты</p>
@@ -78,6 +83,13 @@
         </div>
 
         <form id="proxy-form" class="stack">
+          <input id="proxy-id" name="proxy-id" type="hidden">
+
+          <div id="proxy-form-mode" class="info-card hidden">
+            <p class="info-title">Редактирование proxy</p>
+            <p id="proxy-form-mode-text" class="muted">Изменения будут сохранены в существующий профиль.</p>
+          </div>
+
           <div class="two-columns">
             <label class="field">
               <span>Название</span>
@@ -87,8 +99,10 @@
             <label class="field">
               <span>Протокол</span>
               <select id="proxy-type" name="proxy-type">
-                <option value="https">HTTPS</option>
                 <option value="http">HTTP</option>
+                <option value="https">HTTPS</option>
+                <option value="socks">SOCKS5</option>
+                <option value="socks4">SOCKS4</option>
               </select>
             </label>
           </div>
@@ -124,6 +138,7 @@
           </div>
 
           <div class="form-actions">
+            <button class="ghost hidden" id="cancel-proxy-edit" type="button">Отмена</button>
             <button class="ghost" id="test-proxy-form" type="button">Проверить proxy</button>
             <button class="primary" type="submit">Сохранить proxy</button>
           </div>
@@ -145,6 +160,6 @@
       </nav>
     </main>
 
-    <script src="popup.js"></script>
+    <script src="popup.js" type="module"></script>
   </body>
   </html>

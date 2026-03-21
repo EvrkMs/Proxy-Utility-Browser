@@ -136,6 +136,10 @@ h2 {
 
 .toggle-card,
 .auth-toggle {
+  /* position: relative is required so that the visually-hidden checkbox
+     (position: absolute) stays contained within this element and does not
+     escape into the nearest positioned ancestor further up the tree. */
+  position: relative;
   display: inline-flex;
   align-items: center;
   gap: 10px;
@@ -223,6 +227,10 @@ input:checked + .switch::after {
 
 .form-actions > button {
   flex: 1;
+}
+
+#proxy-form-mode {
+  margin-bottom: 2px;
 }
 
 .primary,
@@ -347,13 +355,12 @@ select {
   color: #213b56;
   font-size: 16px;
   opacity: 0.35;
-  transition: opacity 0.18s ease, transform 0.18s ease;
+  transition: opacity 0.18s ease;
 }
 
 .rule-tile:hover .rule-gear,
 .rule-tile.menu-open .rule-gear {
   opacity: 1;
-  transform: translateX(0);
 }
 
 .rule-menu {
