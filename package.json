@@ -1,6 +1,6 @@
 {
   "name": "proxy-browser",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "description": "Firefox extension for routing selected sites through a configured proxy.",
   "scripts": {

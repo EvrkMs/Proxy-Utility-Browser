@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="ru">
+<html lang="en">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Proxy Browser</title>
+    <title data-i18n="popupTitle">Proxy Browser</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -20,7 +20,7 @@
           </svg>
           <span class="brand-name">ProxyBrowser</span>
         </div>
-        <label class="power-toggle" title="Включить / выключить маршрутизацию">
+        <label class="power-toggle" data-i18n-title="toggleRoutingTitle" title="Enable or disable routing">
           <input id="extension-enabled" type="checkbox">
           <span class="power-track"><span class="power-thumb"></span></span>
         </label>
@@ -34,43 +34,43 @@
 
           <div class="site-card" id="site-card">
             <div>
-              <span class="label-micro">АКТИВНАЯ ВКЛАДКА</span>
+              <span class="label-micro" data-i18n="activeTabLabel">ACTIVE TAB</span>
               <h2 id="current-site" class="site-hostname">—</h2>
-              <p id="current-mode" class="site-mode">Прокси не задан.</p>
+              <p id="current-mode" class="site-mode">Proxy not configured.</p>
             </div>
             <div class="site-dot" id="site-dot"></div>
           </div>
 
           <!-- empty state -->
           <div id="no-proxy-state" class="notice-card">
-            <p class="notice-title">Нет ни одного прокси</p>
-            <p class="notice-body">Добавьте профиль прокси — после этого можно будет маршрутизировать сайты.</p>
-            <button id="go-to-add-proxy" class="btn btn-primary" type="button">Добавить прокси →</button>
+            <p class="notice-title" data-i18n="noProxyTitle">No proxies yet</p>
+            <p class="notice-body" data-i18n="noProxyBody">Add a proxy profile to start routing sites.</p>
+            <button id="go-to-add-proxy" class="btn btn-primary" type="button" data-i18n="goToAddProxyButton">Add proxy →</button>
           </div>
 
           <!-- main actions -->
           <div id="home-actions" class="home-actions">
-            <button id="add-current-site" class="btn btn-primary wide" type="button">
-              + Добавить сайт в правила
+            <button id="add-current-site" class="btn btn-primary wide" type="button" data-i18n="addCurrentSiteButton">
+              + Add site to rules
             </button>
 
             <div class="info-block">
-              <span class="label-micro">ПРОКСИ ПО УМОЛЧАНИЮ</span>
+              <span class="label-micro" data-i18n="defaultProxyLabel">DEFAULT PROXY</span>
               <p id="active-proxy-label" class="info-val">—</p>
             </div>
 
             <div class="info-block">
-              <span class="label-micro">ЗАМЕЧЕННЫЕ ХОСТЫ</span>
+              <span class="label-micro" data-i18n="observedHostsLabel">OBSERVED HOSTS</span>
               <ul id="suggested-hosts" class="chip-list"></ul>
             </div>
 
             <div id="proxy-error-card" class="alert-block alert-error hidden">
-              <span class="label-micro">ОШИБКА PROXY API</span>
+              <span class="label-micro" data-i18n="proxyApiErrorLabel">PROXY API ERROR</span>
               <p id="proxy-error-text"></p>
             </div>
 
             <div id="proxy-decision-card" class="alert-block hidden">
-              <span class="label-micro">ПОСЛЕДНЕЕ РЕШЕНИЕ</span>
+              <span class="label-micro" data-i18n="lastDecisionLabel">LAST DECISION</span>
               <p id="proxy-decision-text" class="mono"></p>
             </div>
           </div>
@@ -79,25 +79,26 @@
         <!-- RULES -->
         <section id="tab-settings" class="panel hidden" data-tab-panel="settings">
           <div class="panel-head">
-            <h2 class="panel-title">Правила</h2>
-            <p class="panel-sub">Сайты, маршрутизируемые через прокси</p>
+            <h2 class="panel-title" data-i18n="rulesTitle">Rules</h2>
+            <p class="panel-sub" data-i18n="rulesSubtitle">Sites routed through proxy</p>
           </div>
 
           <div class="template-block">
-            <span class="label-micro">ШАБЛОНЫ</span>
+            <span class="label-micro" data-i18n="templatesLabel">TEMPLATES</span>
             <div id="template-list" class="template-list"></div>
           </div>
 
           <form id="manual-rule-form" class="manual-rule-form" autocomplete="off" novalidate>
             <label class="field">
-              <span class="field-lbl">Добавить сайт вручную</span>
+              <span class="field-lbl" data-i18n="manualRuleLabel">Add site manually</span>
               <input
                 id="manual-rule-host"
                 type="text"
-                placeholder="example.com, github.com/copilot или https://example.com/path"
+                data-i18n-placeholder="manualRulePlaceholder"
+                placeholder="example.com, github.com/copilot or https://example.com/path"
               >
             </label>
-            <button id="manual-rule-submit" class="btn btn-primary" type="submit">Добавить</button>
+            <button id="manual-rule-submit" class="btn btn-primary" type="submit" data-i18n="addButton">Add</button>
           </form>
 
           <div id="rules-list" class="item-list"></div>
@@ -106,25 +107,25 @@
         <!-- PROXIES -->
         <section id="tab-proxies" class="panel hidden" data-tab-panel="proxies">
           <div class="panel-head">
-            <h2 class="panel-title">Прокси</h2>
-            <p id="default-proxy-label" class="panel-sub">По умолчанию не выбран.</p>
+            <h2 class="panel-title" data-i18n="proxiesTitle">Proxies</h2>
+            <p id="default-proxy-label" class="panel-sub">No default selected.</p>
           </div>
 
           <form id="proxy-form" class="proxy-form" autocomplete="off" novalidate>
             <input id="proxy-id" type="hidden">
 
             <div id="proxy-form-mode" class="edit-banner hidden">
-              <span class="label-micro">РЕДАКТИРОВАНИЕ</span>
+              <span class="label-micro" data-i18n="editingLabel">EDITING</span>
               <p id="proxy-form-mode-text" class="edit-banner-name"></p>
             </div>
 
             <div class="form-row">
               <label class="field">
-                <span class="field-lbl">Название</span>
-                <input id="proxy-name" type="text" placeholder="Основной HTTPS">
+                <span class="field-lbl" data-i18n="proxyNameLabel">Name</span>
+                <input id="proxy-name" type="text" data-i18n-placeholder="proxyNamePlaceholder" placeholder="Primary HTTPS">
               </label>
               <label class="field field-sm">
-                <span class="field-lbl">Протокол</span>
+                <span class="field-lbl" data-i18n="proxyProtocolLabel">Protocol</span>
                 <select id="proxy-type">
                   <option value="http">HTTP</option>
                   <option value="https" selected>HTTPS</option>
@@ -136,11 +137,11 @@
 
             <div class="form-row">
               <label class="field">
-                <span class="field-lbl">Хост</span>
+                <span class="field-lbl" data-i18n="proxyHostLabel">Host</span>
                 <input id="proxy-host" type="text" placeholder="proxy.example.com">
               </label>
               <label class="field field-sm">
-                <span class="field-lbl">Порт</span>
+                <span class="field-lbl" data-i18n="proxyPortLabel">Port</span>
                 <input id="proxy-port" type="number" min="1" max="65535" placeholder="443">
               </label>
             </div>
@@ -148,28 +149,28 @@
             <label class="auth-row">
               <input id="proxy-auth-enabled" type="checkbox">
               <span class="mini-track"><span class="mini-thumb"></span></span>
-              <span>Авторизация</span>
+              <span data-i18n="proxyAuthLabel">Authorization</span>
             </label>
 
             <div id="auth-fields" class="form-row hidden">
               <label class="field">
-                <span class="field-lbl">Логин</span>
+                <span class="field-lbl" data-i18n="proxyUsernameLabel">Username</span>
                 <input id="proxy-username" type="text" placeholder="username">
               </label>
               <label class="field">
-                <span class="field-lbl">Пароль</span>
+                <span class="field-lbl" data-i18n="proxyPasswordLabel">Password</span>
                 <input id="proxy-password" type="password" placeholder="••••••••">
               </label>
             </div>
 
             <div class="form-actions">
-              <button id="cancel-proxy-edit" class="btn btn-ghost hidden" type="button">Отмена</button>
-              <button id="test-proxy-form" class="btn btn-ghost" type="button">Проверить</button>
-              <button id="proxy-submit" class="btn btn-primary" type="submit">Сохранить</button>
+              <button id="cancel-proxy-edit" class="btn btn-ghost hidden" type="button" data-i18n="cancelButton">Cancel</button>
+              <button id="test-proxy-form" class="btn btn-ghost" type="button" data-i18n="testButton">Test</button>
+              <button id="proxy-submit" class="btn btn-primary" type="submit" data-i18n="saveButton">Save</button>
             </div>
           </form>
 
-          <div class="divider"><span>Сохранённые профили</span></div>
+          <div class="divider"><span data-i18n="savedProfilesLabel">Saved profiles</span></div>
           <div id="proxy-list" class="item-list"></div>
         </section>
 
@@ -179,18 +180,18 @@
       <p id="status" class="status-bar" aria-live="polite"></p>
 
       <!-- ── Bottom nav ── -->
-      <nav class="bottom-nav" aria-label="Навигация">
+      <nav class="bottom-nav" data-i18n-aria-label="navigationLabel" aria-label="Navigation">
         <button class="nav-btn active" type="button" data-tab="home">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 7l6-5 6 5v7H10v-4H6v4H2z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>
-          <span>Главная</span>
+          <span data-i18n="tabHome">Home</span>
         </button>
         <button class="nav-btn" type="button" data-tab="settings">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="2" y="4" width="12" height="1.6" rx="0.8" fill="currentColor"/><rect x="2" y="7.2" width="12" height="1.6" rx="0.8" fill="currentColor"/><rect x="2" y="10.4" width="12" height="1.6" rx="0.8" fill="currentColor"/></svg>
-          <span>Правила</span>
+          <span data-i18n="tabRules">Rules</span>
         </button>
         <button class="nav-btn" type="button" data-tab="proxies">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 1l6 3.5v7L8 15 2 11.5v-7z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><circle cx="8" cy="8" r="2" stroke="currentColor" stroke-width="1.4"/></svg>
-          <span>Прокси</span>
+          <span data-i18n="tabProxies">Proxies</span>
         </button>
       </nav>
 

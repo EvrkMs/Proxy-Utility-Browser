@@ -1,5 +1,31 @@
 import { resolveViewModel } from "./state.js";
 
+function t(key, substitutions) {
+  return browser.i18n.getMessage(key, substitutions) || key;
+}
+
+function applyLocalization() {
+  document.documentElement.lang = browser.i18n.getUILanguage();
+
+  for (const node of document.querySelectorAll("[data-i18n]")) {
+    node.textContent = t(node.dataset.i18n);
+  }
+
+  for (const node of document.querySelectorAll("[data-i18n-placeholder]")) {
+    node.placeholder = t(node.dataset.i18nPlaceholder);
+  }
+
+  for (const node of document.querySelectorAll("[data-i18n-title]")) {
+    node.title = t(node.dataset.i18nTitle);
+  }
+
+  for (const node of document.querySelectorAll("[data-i18n-aria-label]")) {
+    node.setAttribute("aria-label", t(node.dataset.i18nAriaLabel));
+  }
+
+  document.title = t("popupTitle");
+}
+
 /* ── Element refs ───────────────────────────────────── */
 const el = {
   tabButtons:       Array.from(document.querySelectorAll("[data-tab]")),
@@ -79,17 +105,17 @@ let lastProxyType = "https";
 const RULE_TEMPLATES = [
   {
     id: "youtube",
-    title: "YouTube",
+    titleKey: "templateYoutubeTitle",
     values: ["youtube.com", "www.youtube.com"]
   },
   {
     id: "discord",
-    title: "Discord",
+    titleKey: "templateDiscordTitle",
     values: ["discord.com", "www.discord.com"]
   },
   {
     id: "ai",
-    title: "Нейросети",
+    titleKey: "templateAiTitle",
     values: [
       "openai.com",
       "chatgpt.com",
@@ -179,10 +205,10 @@ function render(vm) {
   el.extensionEnabled.disabled = !vm.hasProxy;
 
   // Site card
-  el.currentSite.textContent = vm.activeTab?.hostname || "Нет активной вкладки";
+  el.currentSite.textContent = vm.activeTab?.hostname || t("noActiveTab");
   el.currentMode.textContent = vm.activeRuleId
-    ? `Маршрут: ${vm.activeProxyName || "прокси по умолчанию"} · ${formatRuleTarget(vm.activeRule)}`
-    : "Правило для этого сайта не создано.";
+    ? t("routeMode", [vm.activeProxyName || t("defaultProxyFallback"), formatRuleTarget(vm.activeRule)])
+    : t("noRuleForSite");
   el.siteCard.classList.toggle("is-proxied", Boolean(vm.activeRuleId && vm.enabled));
 
   // Home actions visibility
@@ -191,10 +217,10 @@ function render(vm) {
   el.addCurrentSite.disabled = !vm.activeTab || !vm.hasProxy;
 
   // Default proxy label
-  el.activeProxyLabel.textContent = vm.defaultProxyName ?? "Не выбран.";
+  el.activeProxyLabel.textContent = vm.defaultProxyName ?? t("notSelected");
   el.defaultProxyLabel.textContent = vm.defaultProxyName
-    ? `По умолчанию: ${vm.defaultProxyName}`
-    : "По умолчанию не выбран.";
+    ? t("defaultProxyWithName", vm.defaultProxyName)
+    : t("defaultProxyNotSelected");
 
   // Error / decision cards
   el.proxyErrorCard.classList.toggle("hidden", !vm.lastProxyError);
@@ -220,7 +246,7 @@ function renderTemplates() {
 
     const title = document.createElement("div");
     title.className = "template-title";
-    title.textContent = template.title;
+    title.textContent = t(template.titleKey);
 
     const hosts = document.createElement("div");
     hosts.className = "template-hosts";
@@ -232,7 +258,7 @@ function renderTemplates() {
     addButton.type = "button";
     addButton.className = "btn btn-sm btn-primary";
     addButton.textContent = "+";
-    addButton.title = `Добавить шаблон ${template.title}`;
+    addButton.title = t("addTemplateTitle", t(template.titleKey));
     addButton.addEventListener("click", async () => {
       try {
         const raw = await browser.runtime.sendMessage({
@@ -240,9 +266,9 @@ function renderTemplates() {
           payload: { values: template.values },
         });
         render(resolveViewModelSync(raw));
-        setStatus(`Шаблон «${template.title}» добавлен.`);
+        setStatus(t("templateAdded", t(template.titleKey)));
       } catch (err) {
-        setStatus(err.message || "Не удалось добавить шаблон.", true);
+        setStatus(err.message || t("templateAddFailed"), true);
       }
     });
 
@@ -256,7 +282,7 @@ function renderSuggestedHosts(hosts) {
   if (!hosts.length) {
     const li = document.createElement("li");
     li.className = "chip-empty";
-    li.textContent = "Ничего не замечено.";
+    li.textContent = t("nothingObserved");
     el.suggestedHosts.appendChild(li);
     return;
   }
@@ -272,7 +298,7 @@ function renderSuggestedHosts(hosts) {
 function renderRules(rules, proxies) {
   el.rulesList.textContent = "";
   if (!rules.length) {
-    el.rulesList.appendChild(emptyMsg("Нет сайтов под маршрутизацию."));
+    el.rulesList.appendChild(emptyMsg(t("noRulesEmpty")));
     return;
   }
   for (const rule of rules) {
@@ -301,8 +327,8 @@ function buildRuleTile(rule, proxies) {
   const proxyLabel = document.createElement("p");
   proxyLabel.className = "rule-proxy-label";
   proxyLabel.textContent = rule.proxyName
-    ? `Прокси: ${rule.proxyName}`
-    : `По умолчанию: ${rule.effectiveProxyName || "—"}`;
+    ? t("proxyWithName", rule.proxyName)
+    : t("defaultProxyWithName", rule.effectiveProxyName || "—");
 
   left.append(hostname, proxyLabel);
 
@@ -310,7 +336,7 @@ function buildRuleTile(rule, proxies) {
   expandBtn.type = "button";
   expandBtn.className = "rule-expand";
   expandBtn.textContent = "···";
-  expandBtn.title = "Настройки правила";
+  expandBtn.title = t("ruleSettingsTitle");
 
   header.append(left, expandBtn);
 
@@ -325,7 +351,7 @@ function buildRuleTile(rule, proxies) {
   const proxySelect = document.createElement("select");
   const defOption = document.createElement("option");
   defOption.value = "";
-  defOption.textContent = "По умолчанию";
+  defOption.textContent = t("defaultOption");
   proxySelect.appendChild(defOption);
   for (const px of proxies) {
     const opt = document.createElement("option");
@@ -338,7 +364,7 @@ function buildRuleTile(rule, proxies) {
   const saveProxyBtn = document.createElement("button");
   saveProxyBtn.type = "button";
   saveProxyBtn.className = "btn btn-sm btn-ghost";
-  saveProxyBtn.textContent = "Сохранить";
+  saveProxyBtn.textContent = t("saveButton");
   saveProxyBtn.addEventListener("click", async () => {
     try {
       const raw = await browser.runtime.sendMessage({
@@ -346,9 +372,9 @@ function buildRuleTile(rule, proxies) {
         payload: { id: rule.id, proxyId: proxySelect.value || null },
       });
       render(resolveViewModelSync(raw));
-      setStatus("Прокси для правила обновлён.");
+      setStatus(t("ruleProxyUpdated"));
     } catch (err) {
-      setStatus(err.message || "Ошибка.", true);
+      setStatus(err.message || t("genericError"), true);
     }
   });
 
@@ -361,7 +387,7 @@ function buildRuleTile(rule, proxies) {
   const toggleBtn = document.createElement("button");
   toggleBtn.type = "button";
   toggleBtn.className = "btn btn-sm btn-ghost";
-  toggleBtn.textContent = rule.enabled ? "Выключить" : "Включить";
+  toggleBtn.textContent = rule.enabled ? t("disableButton") : t("enableButton");
   toggleBtn.addEventListener("click", async () => {
     try {
       const raw = await browser.runtime.sendMessage({
@@ -369,27 +395,27 @@ function buildRuleTile(rule, proxies) {
         payload: { id: rule.id, enabled: !rule.enabled },
       });
       render(resolveViewModelSync(raw));
-      setStatus("Правило обновлено.");
+      setStatus(t("ruleUpdated"));
     } catch (err) {
-      setStatus(err.message || "Ошибка.", true);
+      setStatus(err.message || t("genericError"), true);
     }
   });
 
   const deleteBtn = document.createElement("button");
   deleteBtn.type = "button";
   deleteBtn.className = "btn btn-sm btn-danger";
-  deleteBtn.textContent = "Удалить";
+  deleteBtn.textContent = t("deleteButton");
   deleteBtn.addEventListener("click", async () => {
-    if (!confirm(`Удалить правило для «${rule.label || rule.matchHost}»?`)) return;
+    if (!confirm(t("confirmDeleteRule", rule.label || rule.matchHost))) return;
     try {
       const raw = await browser.runtime.sendMessage({
         type: "rule:remove",
         payload: { id: rule.id },
       });
       render(resolveViewModelSync(raw));
-      setStatus("Правило удалено.");
+      setStatus(t("ruleDeleted"));
     } catch (err) {
-      setStatus(err.message || "Ошибка.", true);
+      setStatus(err.message || t("genericError"), true);
     }
   });
 
@@ -411,7 +437,7 @@ function buildRuleTile(rule, proxies) {
 function renderProxies(proxies, defaultProxyId) {
   el.proxyList.textContent = "";
   if (!proxies.length) {
-    el.proxyList.appendChild(emptyMsg("Список прокси пуст."));
+    el.proxyList.appendChild(emptyMsg(t("noProxiesEmpty")));
     return;
   }
   for (const proxy of proxies) {
@@ -441,18 +467,18 @@ function buildProxyCard(proxy, defaultProxyId) {
   const meta = document.createElement("div");
   meta.className = "proxy-card-meta";
 
-  if (proxy.id === defaultProxyId) meta.appendChild(badge("По умолчанию", "badge-default"));
-  if (proxy.authEnabled)          meta.appendChild(badge("Auth", "badge-auth"));
+  if (proxy.id === defaultProxyId) meta.appendChild(badge(t("defaultBadge"), "badge-default"));
+  if (proxy.authEnabled)          meta.appendChild(badge(t("authBadge"), "badge-auth"));
 
   const checkStatus = proxy.check?.status ?? "idle";
-  if (checkStatus === "success") meta.appendChild(badge("OK", "badge-success"));
-  else if (checkStatus === "error") meta.appendChild(badge("Ошибка", "badge-error"));
-  else meta.appendChild(badge("Не проверен", "badge-idle"));
+  if (checkStatus === "success") meta.appendChild(badge(t("okBadge"), "badge-success"));
+  else if (checkStatus === "error") meta.appendChild(badge(t("errorBadge"), "badge-error"));
+  else meta.appendChild(badge(t("notTestedBadge"), "badge-idle"));
 
   // check message
   const checkMsg = document.createElement("p");
   checkMsg.className = "proxy-check-msg";
-  checkMsg.textContent = proxy.check?.message || "Соединение ещё не проверялось.";
+  checkMsg.textContent = proxy.check?.message || t("proxyNeverTested");
 
   const checkIps = document.createElement("p");
   checkIps.className = "proxy-check-ips";
@@ -465,7 +491,7 @@ function buildProxyCard(proxy, defaultProxyId) {
   const defaultBtn = document.createElement("button");
   defaultBtn.type = "button";
   defaultBtn.className = "btn btn-sm btn-ghost";
-  defaultBtn.textContent = proxy.id === defaultProxyId ? "Основной ✓" : "Сделать основным";
+  defaultBtn.textContent = proxy.id === defaultProxyId ? t("primaryButtonActive") : t("makePrimaryButton");
   defaultBtn.disabled = proxy.id === defaultProxyId;
   defaultBtn.addEventListener("click", async () => {
     try {
@@ -474,25 +500,25 @@ function buildProxyCard(proxy, defaultProxyId) {
         payload: { id: proxy.id },
       });
       render(resolveViewModelSync(raw));
-      setStatus("Прокси по умолчанию обновлён.");
+      setStatus(t("defaultProxyUpdated"));
     } catch (err) {
-      setStatus(err.message || "Ошибка.", true);
+      setStatus(err.message || t("genericError"), true);
     }
   });
 
   const testBtn = document.createElement("button");
   testBtn.type = "button";
   testBtn.className = "btn btn-sm btn-ghost";
-  testBtn.textContent = "Проверить";
+  testBtn.textContent = t("testButton");
   testBtn.addEventListener("click", async () => {
     try {
-      setStatus("Проверяем подключение…");
+      setStatus(t("testingConnection"));
       testBtn.disabled = true;
       const result = await browser.runtime.sendMessage({ type: "proxy:test", payload: proxy });
       await refresh();
       setStatus(result.message, result.status === "error");
     } catch (err) {
-      setStatus(err.message || "Ошибка.", true);
+      setStatus(err.message || t("genericError"), true);
     } finally {
       testBtn.disabled = false;
     }
@@ -501,24 +527,24 @@ function buildProxyCard(proxy, defaultProxyId) {
   const editBtn = document.createElement("button");
   editBtn.type = "button";
   editBtn.className = "btn btn-sm btn-ghost";
-  editBtn.textContent = "Изменить";
+  editBtn.textContent = t("editButton");
   editBtn.addEventListener("click", () => startProxyEdit(proxy));
 
   const removeBtn = document.createElement("button");
   removeBtn.type = "button";
   removeBtn.className = "btn btn-sm btn-danger";
-  removeBtn.textContent = "Удалить";
+  removeBtn.textContent = t("deleteButton");
   removeBtn.addEventListener("click", async () => {
-    if (!confirm(`Удалить прокси «${proxy.name}»?`)) return;
+    if (!confirm(t("confirmDeleteProxy", proxy.name))) return;
     try {
       const raw = await browser.runtime.sendMessage({
         type: "proxy:remove",
         payload: { id: proxy.id },
       });
       render(resolveViewModelSync(raw));
-      setStatus("Прокси удалён.");
+      setStatus(t("proxyDeleted"));
     } catch (err) {
-      setStatus(err.message || "Ошибка.", true);
+      setStatus(err.message || t("genericError"), true);
     }
   });
 
@@ -530,8 +556,8 @@ function buildProxyCard(proxy, defaultProxyId) {
 /* ── Format helpers ─────────────────────────────────── */
 function formatCheckIps(check) {
   const parts = [];
-  if (check?.directIp) parts.push(`Direct: ${check.directIp}`);
-  if (check?.proxyIp)  parts.push(`Proxy: ${check.proxyIp}`);
+  if (check?.directIp) parts.push(t("directIpLabel", check.directIp));
+  if (check?.proxyIp)  parts.push(t("proxyIpLabel", check.proxyIp));
   return parts.join("  ·  ");
 }
 
@@ -546,7 +572,7 @@ function formatRuleTarget(rule) {
 function formatProxyDecision(decision) {
   if (!decision) return "";
   const parts = [];
-  if (decision.scope === "test") parts.push("TEST");
+  if (decision.scope === "test") parts.push(t("testScope"));
   if (decision.matchedRuleHost)  parts.push(`rule=${decision.matchedRuleHost}`);
   if (decision.proxyHost)        parts.push(`${decision.proxyType?.toUpperCase()} ${decision.proxyHost}:${decision.proxyPort}`);
   if (decision.url)              parts.push(decision.url);
@@ -585,9 +611,9 @@ el.extensionEnabled.addEventListener("change", async () => {
       payload: { enabled: el.extensionEnabled.checked },
     });
     render(resolveViewModelSync(raw));
-    setStatus(el.extensionEnabled.checked ? "Прокси включён." : "Прокси выключен.");
+      setStatus(el.extensionEnabled.checked ? t("proxyEnabled") : t("proxyDisabled"));
   } catch (err) {
-    setStatus(err.message || "Ошибка.", true);
+    setStatus(err.message || t("genericError"), true);
   }
 });
 
@@ -595,10 +621,10 @@ el.addCurrentSite.addEventListener("click", async () => {
   try {
     const raw = await browser.runtime.sendMessage({ type: "rule:addFromTab" });
     render(resolveViewModelSync(raw));
-    setStatus("Сайт добавлен в правила.");
+    setStatus(t("siteAddedToRules"));
     switchTab("settings");
   } catch (err) {
-    setStatus(err.message || "Не удалось добавить сайт.", true);
+    setStatus(err.message || t("siteAddFailed"), true);
   }
 });
 
@@ -608,7 +634,7 @@ el.manualRuleForm.addEventListener("submit", async (event) => {
   const value = el.manualRuleHost.value.trim();
 
   if (!value) {
-    setStatus("Укажите сайт или URL.", true);
+    setStatus(t("enterSiteOrUrl"), true);
     return;
   }
 
@@ -621,9 +647,9 @@ el.manualRuleForm.addEventListener("submit", async (event) => {
     });
     el.manualRuleHost.value = "";
     render(resolveViewModelSync(raw));
-    setStatus("Правило добавлено вручную.");
+    setStatus(t("manualRuleAdded"));
   } catch (err) {
-    setStatus(err.message || "Не удалось добавить сайт.", true);
+    setStatus(err.message || t("siteAddFailed"), true);
   } finally {
     el.manualRuleSubmit.disabled = false;
   }
@@ -635,7 +661,7 @@ el.proxyForm.addEventListener("submit", async (event) => {
   const editingId = el.proxyId.value || null;
 
   el.proxySubmit.disabled = true;
-  el.proxySubmit.textContent = "Проверка…";
+  el.proxySubmit.textContent = t("checkingButton");
 
   try {
     const raw = await browser.runtime.sendMessage({
@@ -650,19 +676,19 @@ el.proxyForm.addEventListener("submit", async (event) => {
       : raw.proxies[0];
     const ips = saved?.check ? formatCheckIps(saved.check) : "";
     setStatus(
-      [wasEditing ? "Прокси обновлён." : "Прокси сохранён.", ips].filter(Boolean).join("  ")
+      [wasEditing ? t("proxyUpdated") : t("proxySaved"), ips].filter(Boolean).join("  ")
     );
   } catch (err) {
-    setStatus(err.message || "Не удалось сохранить.", true);
+    setStatus(err.message || t("saveFailed"), true);
   } finally {
     el.proxySubmit.disabled = false;
-    el.proxySubmit.textContent = "Сохранить";
+    el.proxySubmit.textContent = t("saveButton");
   }
 });
 
 el.cancelProxyEdit.addEventListener("click", () => {
   resetProxyForm();
-  setStatus("Редактирование отменено.");
+  setStatus(t("editCancelled"));
 });
 
 // BUG FIX: Update port only if it matches the default for the PREVIOUS type
@@ -678,23 +704,24 @@ el.proxyType.addEventListener("change", () => {
 el.testProxyButton.addEventListener("click", async () => {
   const payload = getProxyPayload();
   if (!payload.host || !payload.port) {
-    setStatus("Укажите хост и порт.", true);
+    setStatus(t("enterHostAndPort"), true);
     return;
   }
-  setStatus("Проверяем подключение…");
+  setStatus(t("testingConnection"));
   el.testProxyButton.disabled = true;
   try {
     const result = await browser.runtime.sendMessage({ type: "proxy:test", payload });
     const ips = formatCheckIps(result);
     setStatus([result.message, ips].filter(Boolean).join("  "), result.status === "error");
   } catch (err) {
-    setStatus(err.message || "Ошибка при проверке.", true);
+    setStatus(err.message || t("testFailed"), true);
   } finally {
     el.testProxyButton.disabled = false;
   }
 });
 
 /* ── Init ───────────────────────────────────────────── */
+applyLocalization();
 switchTab(activeTabName);
 resetProxyForm();
 
@@ -704,4 +731,4 @@ browser.tabs
     lastActiveTab = tabs[0] ?? null;
     return refresh();
   })
-  .catch((err) => setStatus(err.message || "Не удалось загрузить состояние.", true));
+  .catch((err) => setStatus(err.message || t("loadStateFailed"), true));
