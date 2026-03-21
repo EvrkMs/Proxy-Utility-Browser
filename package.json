@@ -1,0 +1,14 @@
+{
+  "name": "proxy-browser",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Firefox extension for routing selected sites through a configured proxy.",
+  "scripts": {
+    "lint": "web-ext lint --source-dir .",
+    "build": "web-ext build --source-dir . --artifacts-dir web-ext-artifacts --overwrite-dest",
+    "run": "web-ext run --source-dir . --firefox=firefox"
+  },
+  "devDependencies": {
+    "web-ext": "^8.8.0"
+  }
+}
