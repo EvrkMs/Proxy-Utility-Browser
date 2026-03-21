@@ -25,7 +25,22 @@ export function registerBrowserListeners() {
       const testProxy = ProxyService.getProxyForTestUrl(requestInfo.url);
 
       if (testProxy) {
-        return ProxyService.buildProxyInfo(testProxy);
+        const proxyInfo = ProxyService.buildProxyInfo(testProxy);
+        patchState({
+          lastProxyDecision: {
+            scope: "test",
+            url: requestInfo.url,
+            tabId: requestInfo.tabId,
+            proxyType: proxyInfo.type,
+            proxyHost: proxyInfo.host ?? "",
+            proxyPort: proxyInfo.port ?? 0,
+            matchedRuleHost: "",
+            at: Date.now()
+          },
+          lastProxyError: ""
+        });
+        saveState().catch(console.error);
+        return proxyInfo;
       }
 
       const state = getState();
@@ -40,7 +55,25 @@ export function registerBrowserListeners() {
         return { type: "direct" };
       }
 
-      return ProxyService.buildProxyInfo(ProxyService.getEffectiveForRule(rule));
+      const effectiveProxy = ProxyService.getEffectiveForRule(rule);
+      const proxyInfo = ProxyService.buildProxyInfo(effectiveProxy);
+
+      patchState({
+        lastProxyDecision: {
+          scope: "rule",
+          url: requestInfo.url,
+          tabId: requestInfo.tabId,
+          proxyType: proxyInfo.type,
+          proxyHost: proxyInfo.host ?? "",
+          proxyPort: proxyInfo.port ?? 0,
+          matchedRuleHost: rule.matchHost ?? "",
+          at: Date.now()
+        },
+        lastProxyError: ""
+      });
+      saveState().catch(console.error);
+
+      return proxyInfo;
     },
     { urls: ["<all_urls>"] }
   );

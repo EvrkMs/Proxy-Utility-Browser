@@ -13,6 +13,8 @@ const el = {
   activeProxyLabel: document.getElementById("active-proxy-label"),
   proxyErrorCard: document.getElementById("proxy-error-card"),
   proxyErrorText: document.getElementById("proxy-error-text"),
+  proxyDecisionCard: document.getElementById("proxy-decision-card"),
+  proxyDecisionText: document.getElementById("proxy-decision-text"),
   suggestedHosts: document.getElementById("suggested-hosts"),
   rulesList: document.getElementById("rules-list"),
   proxyForm: document.getElementById("proxy-form"),
@@ -141,6 +143,8 @@ function render(vm) {
     : "Proxy по умолчанию пока не выбран.";
   el.proxyErrorCard.classList.toggle("hidden", !vm.lastProxyError);
   el.proxyErrorText.textContent = vm.lastProxyError || "";
+  el.proxyDecisionCard.classList.toggle("hidden", !vm.lastProxyDecision);
+  el.proxyDecisionText.textContent = formatProxyDecision(vm.lastProxyDecision);
 
   el.defaultProxyLabel.textContent = vm.defaultProxyName
     ? `По умолчанию: ${vm.defaultProxyName}`
@@ -196,6 +200,34 @@ function formatCheckDetails(check) {
 
   if (check?.proxyIp) {
     parts.push(`Через proxy: ${check.proxyIp}`);
+  }
+
+  return parts.join(" • ");
+}
+
+function formatProxyDecision(decision) {
+  if (!decision) {
+    return "";
+  }
+
+  const parts = [];
+
+  if (decision.scope === "test") {
+    parts.push("Тестовый запрос");
+  }
+
+  if (decision.matchedRuleHost) {
+    parts.push(`Правило: ${decision.matchedRuleHost}`);
+  }
+
+  if (decision.proxyType && decision.proxyHost) {
+    parts.push(
+      `Proxy: ${String(decision.proxyType).toUpperCase()} ${decision.proxyHost}:${decision.proxyPort}`
+    );
+  }
+
+  if (decision.url) {
+    parts.push(`URL: ${decision.url}`);
   }
 
   return parts.join(" • ");

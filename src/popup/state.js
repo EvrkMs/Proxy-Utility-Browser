@@ -94,6 +94,7 @@ export function resolveViewModel(rawState, activeTab) {
     defaultProxyId,
     defaultProxyName: getProxyById(proxies, defaultProxyId)?.name ?? null,
     lastProxyError: String(lastProxyError ?? ""),
+    lastProxyDecision: rawState.lastProxyDecision ?? null,
     rules: rules.map((rule) => resolveRule(rule, proxies, defaultProxyId)),
     activeTab: activeTab
       ? {

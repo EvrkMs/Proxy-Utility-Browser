@@ -6,6 +6,7 @@ export const DEFAULT_STATE = {
   proxies: [],
   proxyChecks: {},
   lastProxyError: "",
+  lastProxyDecision: null,
   rules: [],
   tabHosts: {},
   tabContexts: {}

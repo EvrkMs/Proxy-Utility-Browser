@@ -7,7 +7,7 @@ import {
 } from "./store.js";
 
 const pendingProxyTests = new Map();
-const IP_CHECK_URL = "https://api.ipify.org?format=json";
+const IP_CHECK_URL = "https://api.ipify.org";
 
 export function getById(proxyId) {
   if (!proxyId) {
@@ -122,6 +122,11 @@ export function buildProxyInfo(proxy) {
 
   if (proxy.type === "socks" || proxy.type === "socks4") {
     proxyInfo.proxyDNS = true;
+
+    if (proxy.authEnabled && proxy.username) {
+      proxyInfo.username = proxy.username;
+      proxyInfo.password = proxy.password || "";
+    }
   }
 
   return proxyInfo;
@@ -156,13 +161,11 @@ export async function testProxy(rawProxy) {
     throw new Error("Proxy host and port are required.");
   }
 
-  const testUrl = `${IP_CHECK_URL}&proxy_browser_test=${encodeURIComponent(crypto.randomUUID())}`;
-
-  pendingProxyTests.set(testUrl, proxy);
+  const testUrl = `${IP_CHECK_URL}?proxy_browser_test=${encodeURIComponent(crypto.randomUUID())}`;
 
   try {
     const directIp = await fetchIp(IP_CHECK_URL);
-    const proxyIp = await fetchIp(testUrl);
+    const proxyIp = await fetchIpThroughHiddenTab(testUrl, proxy);
 
     if (!proxyIp) {
       throw new Error("Не удалось получить IP через proxy.");
@@ -172,7 +175,7 @@ export async function testProxy(rawProxy) {
     const result = normalizeProxyCheck({
       status: "success",
       message: sameIpWarning
-        ? `Proxy отвечает, но IP не изменился: ${proxyIp}.`
+        ? `Proxy отвечает, но IP запроса расширения не изменился: ${proxyIp}. Это не гарантирует, что трафик обычных вкладок не проксируется.`
         : `Подключение через proxy прошло успешно. IP: ${proxyIp}.`,
       checkedAt: Date.now(),
       directIp,
@@ -210,14 +213,100 @@ async function fetchIp(url) {
     throw new Error(`IP service returned ${response.status}.`);
   }
 
-  const data = await response.json();
-  const ip = String(data?.ip ?? "").trim();
+  const ip = String(await response.text()).trim();
 
   if (!ip) {
     throw new Error("IP service returned an empty response.");
   }
 
   return ip;
+}
+
+async function fetchIpThroughHiddenTab(url, proxy) {
+  pendingProxyTests.set(url, proxy);
+
+  const tab = await browser.tabs.create({
+    url,
+    active: false
+  });
+
+  const tabId = tab.id;
+
+  if (typeof tabId !== "number") {
+    pendingProxyTests.delete(url);
+    throw new Error("Не удалось создать тестовую вкладку.");
+  }
+
+  return new Promise((resolve, reject) => {
+    let settled = false;
+
+    const timeoutId = setTimeout(() => {
+      finishWithError(new Error("Timeout: proxy не ответил за 12 секунд."));
+    }, 12000);
+
+    const cleanup = () => {
+      clearTimeout(timeoutId);
+      browser.tabs.onUpdated.removeListener(onUpdated);
+      browser.webRequest.onErrorOccurred.removeListener(onErrorOccurred);
+      browser.tabs.remove(tabId).catch(() => {});
+      pendingProxyTests.delete(url);
+    };
+
+    const finishWithResult = (value) => {
+      if (settled) {
+        return;
+      }
+
+      settled = true;
+      cleanup();
+      resolve(value);
+    };
+
+    const finishWithError = (error) => {
+      if (settled) {
+        return;
+      }
+
+      settled = true;
+      cleanup();
+      reject(error);
+    };
+
+    const onErrorOccurred = (details) => {
+      if (details.tabId !== tabId || details.url !== url) {
+        return;
+      }
+
+      finishWithError(new Error(details.error || "Не удалось подключиться через proxy."));
+    };
+
+    const onUpdated = async (updatedTabId, changeInfo) => {
+      if (updatedTabId !== tabId || changeInfo.status !== "complete") {
+        return;
+      }
+
+      try {
+        const [result] = await browser.tabs.executeScript(tabId, {
+          code: "document.body ? document.body.innerText.trim() : '';"
+        });
+
+        const ip = String(result ?? "").trim();
+
+        if (!ip) {
+          throw new Error("Тестовая вкладка загрузилась, но не вернула IP.");
+        }
+
+        finishWithResult(ip);
+      } catch (error) {
+        finishWithError(error instanceof Error ? error : new Error(String(error)));
+      }
+    };
+
+    browser.tabs.onUpdated.addListener(onUpdated);
+    browser.webRequest.onErrorOccurred.addListener(onErrorOccurred, {
+      urls: ["<all_urls>"]
+    });
+  });
 }
 
 export async function saveCheck(proxyId, result) {
