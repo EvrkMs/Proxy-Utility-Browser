@@ -20,8 +20,12 @@ export function registerBrowserListeners() {
     SiteRouter.onTabClosed(tabId);
   });
 
-  browser.proxy.onRequest.addListener(
+browser.proxy.onRequest.addListener(
     (requestInfo) => {
+      if (requestInfo.type !== "main_frame" && requestInfo.type !== "xmlhttprequest") {
+            return { type: "direct" };
+          }
+
       const testProxy = ProxyService.getProxyForTestUrl(requestInfo.url);
 
       if (testProxy) {
@@ -39,7 +43,7 @@ export function registerBrowserListeners() {
           },
           lastProxyError: ""
         });
-        saveState().catch(console.error);
+        // Убрали saveState() отсюда
         return proxyInfo;
       }
 
@@ -76,8 +80,7 @@ export function registerBrowserListeners() {
         },
         lastProxyError: ""
       });
-      saveState().catch(console.error);
-
+      // Убрали saveState() отсюда
       return proxyInfo;
     },
     { urls: ["<all_urls>"] }
@@ -112,7 +115,6 @@ export function registerBrowserListeners() {
     patchState({
       lastProxyError: error?.message ?? "Unknown proxy error"
     });
-    saveState().catch(console.error);
   });
 }
 
