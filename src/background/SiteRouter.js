@@ -2,6 +2,7 @@ import {
   getState,
   patchState,
   saveState,
+  schedulePersist,   // ← добавить
   normalizeRule,
   normalizeHost,
   normalizePathPrefix,
@@ -145,7 +146,8 @@ export function rememberTabSite(tabId, url, resetHosts = false) {
     }
   });
 
-  saveState().catch(console.error);
+  // больше не сохраняем на каждый запрос
+  schedulePersist();
 }
 
 export function onRequestSeen(tabId, url, type) {
@@ -164,6 +166,12 @@ export function onRequestSeen(tabId, url, type) {
   const tabKey = String(tabId);
   const current = new Set(state.tabHosts[tabKey] ?? []);
   const previousSize = current.size;
+
+  // ограничиваем рост (защита от тяжёлых сайтов)
+  if (previousSize >= 40 && type !== "main_frame") {
+    return;
+  }
+
   const nextTabContexts =
     type === "main_frame"
       ? {
@@ -186,12 +194,8 @@ export function onRequestSeen(tabId, url, type) {
       tabContexts: nextTabContexts
     });
 
-    saveState().catch(console.error);
+    schedulePersist();
   }
-}
-
-export function onTabNavigated(tabId, url) {
-  rememberTabSite(tabId, url, true);
 }
 
 export function onTabClosed(tabId) {
@@ -208,7 +212,11 @@ export function onTabClosed(tabId) {
     tabContexts: nextContexts
   });
 
-  saveState().catch(console.error);
+  schedulePersist();
+}
+
+export function onTabNavigated(tabId, url) {
+  rememberTabSite(tabId, url, true);
 }
 
 export async function pruneClosedTabs() {

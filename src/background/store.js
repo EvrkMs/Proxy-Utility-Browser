@@ -175,3 +175,29 @@ export function normalizeRule(rule) {
     hosts: uniqueHosts
   };
 }
+let persistTimer = null;
+const PERSIST_DELAY_MS = 4000; // 4 секунды — можно подкрутить
+
+/**
+ * Откладывает запись в storage.local.
+ * Несколько вызовов подряд схлопываются в одну запись.
+ */
+export function schedulePersist() {
+  if (persistTimer !== null) {
+    clearTimeout(persistTimer);
+  }
+
+  persistTimer = setTimeout(() => {
+    persistTimer = null;
+    saveState().catch(console.error);
+  }, PERSIST_DELAY_MS);
+}
+
+/** Принудительная запись (когда действительно нужно сразу) */
+export async function flushPersist() {
+  if (persistTimer !== null) {
+    clearTimeout(persistTimer);
+    persistTimer = null;
+  }
+  await saveState();
+}

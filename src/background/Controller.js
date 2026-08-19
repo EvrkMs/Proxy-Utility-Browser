@@ -3,12 +3,78 @@ import * as ProxyService from "./ProxyService.js";
 import * as SiteRouter from "./SiteRouter.js";
 
 export function registerBrowserListeners() {
-  browser.webRequest.onBeforeRequest.addListener(
-    (details) => {
-      SiteRouter.onRequestSeen(details.tabId, details.url, details.type);
-    },
-    { urls: ["<all_urls>"] }
-  );
+browser.proxy.onRequest.addListener(
+  (requestInfo) => {
+    // Тестовый запрос прокси (скрытая вкладка)
+    const testProxy = ProxyService.getProxyForTestUrl(requestInfo.url);
+    if (testProxy) {
+      const proxyInfo = ProxyService.buildProxyInfo(testProxy);
+      patchState({
+        lastProxyDecision: {
+          scope: "test",
+          url: requestInfo.url,
+          tabId: requestInfo.tabId,
+          proxyType: proxyInfo.type,
+          proxyHost: proxyInfo.host ?? "",
+          proxyPort: proxyInfo.port ?? 0,
+          matchedRuleHost: "",
+          at: Date.now()
+        },
+        lastProxyError: ""
+      });
+      return proxyInfo;
+    }
+
+    const state = getState();
+
+    // Расширение выключено / нет прокси / нет hostname
+    if (!state.enabled || !ProxyService.hasConfigured() || !tryGetHostname(requestInfo.url)) {
+      return { type: "direct" };
+    }
+
+    // Главное изменение: больше не режем по type.
+    // Если вкладка матчится по правилу — проксируем ВСЕ её запросы.
+    let rule = null;
+
+    if (requestInfo.type === "main_frame") {
+      // Для документа всегда смотрим по URL (самый надёжный источник)
+      rule = SiteRouter.findMatchingRuleForUrl(requestInfo.url);
+    } else if (requestInfo.tabId >= 0) {
+      // Для всех остальных ресурсов — по контексту вкладки
+      rule = SiteRouter.findMatchingRule(requestInfo.tabId);
+
+      // Защита от гонки: если контекст вкладки ещё не успел обновиться,
+      // а это ранний sub-resource — пробуем по URL как fallback
+      if (!rule) {
+        rule = SiteRouter.findMatchingRuleForUrl(requestInfo.url);
+      }
+    }
+
+    if (!rule) {
+      return { type: "direct" };
+    }
+
+    const effectiveProxy = ProxyService.getEffectiveForRule(rule);
+    const proxyInfo = ProxyService.buildProxyInfo(effectiveProxy);
+
+    patchState({
+      lastProxyDecision: {
+        scope: "rule",
+        url: requestInfo.url,
+        tabId: requestInfo.tabId,
+        proxyType: proxyInfo.type,
+        proxyHost: proxyInfo.host ?? "",
+        proxyPort: proxyInfo.port ?? 0,
+        matchedRuleHost: rule.matchHost ?? "",
+        at: Date.now()
+      },
+      lastProxyError: ""
+    });
+
+    return proxyInfo;
+  },
+  { urls: ["<all_urls>"] }
+);
 
   browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     if (changeInfo.status === "loading") {
