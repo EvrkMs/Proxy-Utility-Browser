@@ -151,26 +151,27 @@ export function rememberTabSite(tabId, url, resetHosts = false) {
 }
 
 export function onRequestSeen(tabId, url, type) {
-  if (tabId < 0) {
-    return;
-  }
+  if (tabId < 0) return;
 
   const hostname = tryGetHostname(url);
-  const pathname = tryGetPathname(url);
-
-  if (!hostname) {
-    return;
-  }
+  if (!hostname) return;
 
   const state = getState();
   const tabKey = String(tabId);
-  const current = new Set(state.tabHosts[tabKey] ?? []);
-  const previousSize = current.size;
+  const currentHosts = state.tabHosts[tabKey] ?? [];
 
-  // ограничиваем рост (защита от тяжёлых сайтов)
-  if (previousSize >= 40 && type !== "main_frame") {
+  // лимит
+  if (currentHosts.length >= 40 && type !== "main_frame") {
     return;
   }
+
+  // уже есть — ничего не делаем (дешёвая проверка без Set)
+  if (type !== "main_frame" && currentHosts.includes(hostname)) {
+    return;
+  }
+
+  const current = new Set(currentHosts);
+  current.add(hostname);
 
   const nextTabContexts =
     type === "main_frame"
@@ -178,24 +179,20 @@ export function onRequestSeen(tabId, url, type) {
           ...state.tabContexts,
           [tabKey]: {
             siteHost: hostname,
-            sitePath: pathname
+            sitePath: tryGetPathname(url)
           }
         }
       : state.tabContexts;
 
-  current.add(hostname);
+  patchState({
+    tabHosts: {
+      ...state.tabHosts,
+      [tabKey]: Array.from(current).sort()
+    },
+    tabContexts: nextTabContexts
+  });
 
-  if (current.size !== previousSize || type === "main_frame") {
-    patchState({
-      tabHosts: {
-        ...state.tabHosts,
-        [tabKey]: Array.from(current).sort()
-      },
-      tabContexts: nextTabContexts
-    });
-
-    schedulePersist();
-  }
+  schedulePersist();
 }
 
 export function onTabClosed(tabId) {
